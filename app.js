@@ -12,6 +12,8 @@ const readStored = (key, fallback) => { try { return JSON.parse(localStorage.get
 const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
 let saved = readStored('gongmo-radar-saved', []);
 if (!Array.isArray(saved)) saved = [];
+let includeSpac = readStored('gongmo-radar-spac', false) === true;
+const isSpac = item => item.sector === 'SPAC' || /스팩|SPAC|기업인수목적/i.test(item.name || '');
 let viewMode = readStored('gongmo-radar-view', 'list'); if (!['list', 'calendar'].includes(viewMode)) viewMode = 'list';
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const dateLabel = value => value ? value.slice(5).replace('-', '. ') : '확인중';
@@ -41,11 +43,13 @@ function displayedData() {
   return demoMode ? demoData.map((x, i) => fromDbListing({ id: `demo-${i}`, name: x[0], sector: x[1], subscription_start: `${currentMonth}-${x[2]}`, subscription_end: `${currentMonth}-${x[3]}`, price_text: x[4], broker: x[5], score: x[6], score_status: x[6] === null ? 'pending' : 'complete', reason: x[7], tags: x[8], status: '예정' })) : ipoData;
 }
 function render() {
-  const all = displayedData(), monthly = all.filter(item => inMonth(item, currentMonth));
+  // 스팩은 상장 후 성과처럼 기본 제외하고, '스팩 포함'을 누르면 함께 보여준다.
+  const all = displayedData().filter(item => includeSpac || !isSpac(item)), monthly = all.filter(item => inMonth(item, currentMonth));
   const baseEntries = selectListings(all, { month: currentMonth, search: $('#stockSearch').value, status: $('#statusFilter').value, sort: $('#sortFilter').value, savedOnly, saved });
   $('#monthLabel').textContent = monthText(currentMonth); $('#heroMonth').textContent = `${Number(currentMonth.slice(5))}월`;
   $('#savedCount').textContent = saved.length; $('#demoWarning').hidden = !demoMode;
   $('#demoToggle').textContent = demoMode ? '실제 데이터 보기' : '예시 화면 보기'; $('#demoToggle').setAttribute('aria-pressed', String(demoMode));
+  $('#calendarSpac').setAttribute('aria-pressed', String(includeSpac)); $('#calendarSpac').textContent = includeSpac ? '스팩 제외' : '스팩 포함';
   $('#savedFilter').setAttribute('aria-pressed', String(savedOnly)); $('#savedFilter').textContent = savedOnly ? '★ 관심만 보기' : '☆ 관심만 보기';
   const statusText = { loading: '공시 데이터를 불러오는 중', live: '공시 데이터 연결됨', error: '데이터를 불러오지 못했습니다. 새로고침해 주세요.', unconfigured: '공시 데이터 연결 준비중' };
   $('#dataStatus').textContent = demoMode ? '예시 모드 · 가상 기업과 점수' : statusText[dataState]; $('#dataStatus').dataset.state = demoMode ? 'demo' : dataState;
@@ -110,6 +114,7 @@ function changeMonth(delta) { const date = new Date(`${currentMonth}-01T00:00:00
 $('#prevMonth').addEventListener('click', () => changeMonth(-1)); $('#nextMonth').addEventListener('click', () => changeMonth(1));
 $('#todayMonth').addEventListener('click', () => { currentMonth = koreaDate().slice(0, 7); render(); });
 $('#stockSearch').addEventListener('input', render); $('#statusFilter').addEventListener('change', render); $('#sortFilter').addEventListener('change', render);
+$('#calendarSpac').addEventListener('click', () => { includeSpac = !includeSpac; store('gongmo-radar-spac', includeSpac); render(); });
 $('#quickFilter').addEventListener('click', event => { const button = event.target.closest('[data-quick]'); if (!button) return; quickFilter = button.dataset.quick; render(); });
 $('#savedFilter').addEventListener('click', () => { savedOnly = !savedOnly; render(); }); $('#savedNav').addEventListener('click', () => { savedOnly = true; render(); });
 $('#demoToggle').addEventListener('click', () => { demoMode = !demoMode; render(); }); $('#howButton').addEventListener('click', () => document.querySelector('.method').scrollIntoView());
