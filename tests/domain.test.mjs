@@ -48,27 +48,39 @@ test('이미 반영한 정정 공시는 다시 만들지 않는다', async () =>
   assert.equal(result.listings.length, 0); assert.equal(result.review.length, 0);
 });
 
-test('과거 구간만 조회하는 백필은 조회 종료일 이후에 올라온 최신 정정본과 다시 맞춘다', async () => {
-  const older = { ...report, rcept_no: '20260618000356', rcept_dt: '20260618' };
-  const newer = { ...report, rcept_no: '20260623000402', rcept_dt: '20260623' };
-  const newerPayload = { group: [
-    { title: '일반사항', list: [{ ...newer, sbd: '2026.10.13 ~ 2026.10.14', pymd: '2026.10.16' }] },
-    { title: '증권의종류', list: [{ ...newer, slprc: '12,000', slmthn: '일반공모' }] },
-    { title: '인수인정보', list: [{ ...newer, actnmn: '검증증권' }] }
-  ] };
-  const text = '금번 공모는 코스닥시장 신규상장을 위한 일반공모입니다.';
-  const client = {
-    list: async params => params.corp_code ? [older, newer] : [{ ...older, report_nm: '증권신고서(지분증권)' }],
-    equity: async () => newerPayload,
-    document: async () => new Uint8Array()
-  };
-  const result = await collectOfferings({
-    client, unzip: () => ({ 'a.xml': new TextEncoder().encode(text) }),
-    now: new Date('2026-10-02T00:00:00Z'), range: { begin: '20260327', end: '20260619' }
-  });
+// 실제 DART 이력(클로봇·채비·마키나락스): estkRs 요약은 마지막 [기재정정]증권신고서를 가리키고
+// 그 뒤의 [발행조건확정]·투자설명서·실적보고서·철회신고서는 반영하지 않는다.
+const amended = { ...report, rcept_no: '20260623000402', report_nm: '[기재정정]증권신고서(지분증권)' };
+const finalTerms = { ...report, rcept_no: '20260703000419', report_nm: '[발행조건확정]증권신고서(지분증권)' };
+const resultReport = { ...report, rcept_no: '20260824000231', report_nm: '증권발행실적보고서' };
+const amendedPayload = { group: [
+  { title: '일반사항', list: [{ ...amended, sbd: '2026.10.13 ~ 2026.10.14', pymd: '2026.10.16' }] },
+  { title: '증권의종류', list: [{ ...amended, slprc: '12,000', slmthn: '일반공모' }] },
+  { title: '인수인정보', list: [{ ...amended, actnmn: '검증증권' }] }
+] };
+const ipoText = '금번 공모는 코스닥시장 신규상장을 위한 일반공모입니다.';
+const historyClient = history => ({
+  list: async params => params.corp_code ? history : [finalTerms],
+  equity: async () => amendedPayload,
+  document: async () => new Uint8Array()
+});
+const unzipText = () => ({ 'a.xml': new TextEncoder().encode(ipoText) });
+test('발행조건확정 이후에도 요약이 가리키는 정정신고서 기준으로 자동 게시한다', async () => {
+  const result = await collectOfferings({ client: historyClient([resultReport, finalTerms, amended]), unzip: unzipText, now: new Date('2026-10-02T00:00:00Z') });
   assert.equal(result.review.length, 0);
   assert.equal(result.listings.length, 1);
-  assert.equal(result.listings[0].dart_receipt_no, newer.rcept_no);
+  assert.equal(result.listings[0].dart_receipt_no, amended.rcept_no);
+  assert.equal(result.listings[0].source_payload.latest_receipt_no, finalTerms.rcept_no);
+  assert.equal(result.listings[0].is_published, true);
+  // 다음 실행에서 같은 최신 공시를 다시 만나면 재계산하지 않는다.
+  const again = await collectOfferings({ client: { ...historyClient([]), equity: () => { throw new Error('should not be called'); } }, unzip: unzipText, now: new Date('2026-10-02T00:00:00Z'), existing: [result.listings[0]] });
+  assert.equal(again.listings.length, 0); assert.equal(again.review.length, 0);
+});
+test('요약 이후 철회신고서가 있으면 철회로 숨긴다', async () => {
+  const withdrawal = { ...report, rcept_no: '20260831001297', report_nm: '철회신고서' };
+  const result = await collectOfferings({ client: historyClient([withdrawal, finalTerms, amended]), unzip: unzipText, now: new Date('2026-10-02T00:00:00Z') });
+  assert.equal(result.listings[0].status, '철회');
+  assert.equal(result.listings[0].is_published, false);
 });
 test('5거래일 성과는 휴장일을 건너뛰고 시초가 매수 수익률을 별도로 계산한다', () => {
   const sample = { listedAt: '2026-09-21', offerPrice: 10000, days: [

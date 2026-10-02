@@ -105,29 +105,34 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
     const prior = companies.get(report.corp_code);
     if (!prior || report.rcept_no > prior.rcept_no) companies.set(report.corp_code, report);
   }
-  // 과거 구간만 조회하는 백필(range.end가 오늘이 아님)에서는, 그 구간 "안에서" 고른 최신 정정본보다
-  // 더 최신 정정이 이미 올라와 있을 수 있다. estkRs 조회는 항상 전체 최신 기준으로 응답하므로
-  // 접수번호가 어긋나 전부 "검토 대기"로 빠지는 것을 막기 위해 오늘 기준 진짜 최신본으로 다시 맞춘다.
-  if (range.end !== todayStr) {
-    for (const [corpCode, candidate] of companies) {
-      const later = await client.list({ corp_code: corpCode, bgn_de: candidate.rcept_dt || range.begin, end_de: todayStr, pblntf_detail_ty: 'C001', last_reprt_at: 'N' });
-      const latest = later.reduce((best, row) => (!best || row.rcept_no > best.rcept_no) ? row : best, candidate);
-      companies.set(corpCode, latest);
-    }
-  }
   const listings = [], review = [];
-  for (const report of companies.values()) {
-    const previous = existing.find(row => row.source_key === 'dart-ipo:' + report.corp_code);
+  // estkRs 시작일은 최초 신고서 기준이라 이전 연도부터 넉넉히, 종료일은 백필이어도 오늘까지 본다.
+  const historyBegin = String(Number(range.begin.slice(0, 4)) - 1) + '0101';
+  for (const candidate of companies.values()) {
+    const previous = existing.find(row => row.source_key === 'dart-ipo:' + candidate.corp_code);
     // Persisted history is retained. Already imported revisions are not recomputed.
-    if (previous?.dart_receipt_no === report.rcept_no && !report.rm?.includes('철')) continue;
+    if (previous && [previous.dart_receipt_no, previous.source_payload?.latest_receipt_no].includes(candidate.rcept_no) && !candidate.rm?.includes('철')) continue;
+    let report = candidate;
     try {
-      // estkRs는 항상 최신 기준으로 응답하므로 종료일을 오늘로 둬야 위에서 다시 맞춘 최신 정정본과 어긋나지 않는다.
-      // 시작일은 최초 신고서 기준이라 이전 연도부터 넉넉히 포함한다.
-      const payload = await client.equity(report.corp_code, { begin: String(Number(range.begin.slice(0, 4)) - 1) + '0101', end: todayStr });
+      const payload = await client.equity(candidate.corp_code, { begin: historyBegin, end: todayStr });
+      const summarized = new Set(groupRows(payload.group || [], '일반사항').map(row => row.rcept_no));
+      // estkRs 요약은 [발행조건확정]·투자설명서·실적보고서·철회신고서를 반영하지 않고 마지막 증권신고서(정정 포함)
+      // 기준으로 응답한다. 그래서 "최신 공시"를 추측하지 않고, 요약이 가리키는 신고서를 이 회사 이력에서 찾아 맞춘다.
+      let history = null;
+      if (!summarized.has(candidate.rcept_no)) {
+        history = await client.list({ corp_code: candidate.corp_code, bgn_de: historyBegin, end_de: todayStr, pblntf_ty: 'C' });
+        const matched = history.filter(row => summarized.has(row.rcept_no) && /증권신고서.*지분증권/.test(row.report_nm || '')).sort((a, b) => b.rcept_no.localeCompare(a.rcept_no))[0];
+        if (matched) report = matched;
+      }
       const text = documentText(await client.document(report.rcept_no), unzip);
       const normalized = normalizeOffering(payload, report, text);
-      if (normalized.listing) listings.push(normalized.listing);
-      else review.push({ company: report.corp_name, receiptNo: report.rcept_no, reason: normalized.review });
+      if (normalized.listing) {
+        const newest = (history || [candidate]).filter(row => /증권신고서.*지분증권/.test(row.report_nm || '')).reduce((a, b) => (b.rcept_no > a.rcept_no ? b : a), candidate);
+        normalized.listing.source_payload.latest_receipt_no = newest.rcept_no;
+        const withdrawal = history?.find(row => /철회/.test(row.report_nm || '') && row.rcept_no > report.rcept_no);
+        if (withdrawal) Object.assign(normalized.listing, { status: '철회', is_published: false, source_dart_url: 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + withdrawal.rcept_no });
+        listings.push(normalized.listing);
+      } else review.push({ company: report.corp_name, receiptNo: report.rcept_no, reason: normalized.review });
     } catch (error) {
       // Authentication / quota failures abort the entire sync rather than pretending success.
       if (error instanceof DartError && ['010', '011', '012', '020', '901'].includes(error.status)) throw error;
@@ -136,8 +141,9 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
   }
   // Detect withdrawal filings for active IPOs, including reports outside C001.
   for (const previous of existing.filter(row => row.dart_corp_code && row.status !== '철회' && (!row.subscription_end || row.subscription_end >= range.begin.slice(0,4) + '-' + range.begin.slice(4,6) + '-' + range.begin.slice(6)))) {
-    const latest = await client.list({ corp_code: previous.dart_corp_code, bgn_de: range.begin, end_de: range.end, pblntf_ty: 'C' });
-    const withdrawal = latest.find(row => /철회/.test(row.report_nm) && /지분증권/.test(row.report_nm) && row.rcept_no > previous.dart_receipt_no);
+    const latest = await client.list({ corp_code: previous.dart_corp_code, bgn_de: range.begin, end_de: todayStr, pblntf_ty: 'C' });
+    // 실제 철회 공시 제목은 "철회신고서"처럼 '지분증권'이 빠진 형태가 많다.
+    const withdrawal = latest.find(row => /철회/.test(row.report_nm || '') && row.rcept_no > previous.dart_receipt_no);
     if (withdrawal) {
       const i = listings.findIndex(row => row.source_key === previous.source_key); if (i >= 0) listings.splice(i, 1);
       listings.push({ ...previous, status: '철회', is_published: false, dart_receipt_no: withdrawal.rcept_no, source_dart_url: 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + withdrawal.rcept_no, updated_at: new Date().toISOString() });
