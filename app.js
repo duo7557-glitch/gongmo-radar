@@ -12,6 +12,7 @@ const readStored = (key, fallback) => { try { return JSON.parse(localStorage.get
 const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
 let saved = readStored('gongmo-radar-saved', []);
 if (!Array.isArray(saved)) saved = [];
+let viewMode = readStored('gongmo-radar-view', 'list'); if (!['list', 'calendar'].includes(viewMode)) viewMode = 'list';
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const dateLabel = value => value ? value.slice(5).replace('-', '. ') : '확인중';
 const monthText = month => `${month.slice(0, 4)}년 ${Number(month.slice(5))}월`;
@@ -52,9 +53,34 @@ function render() {
     const id = escapeHtml(item.id), score = scoreOf(item), status = statusOf(item);
     return `<tr><td><div class="stock-name"><button class="save-button ${saved.includes(String(item.id)) ? 'is-saved' : ''}" data-save="${id}" aria-label="${escapeHtml(item.name)} 관심 등록" aria-pressed="${saved.includes(String(item.id))}">${saved.includes(String(item.id)) ? '★' : '☆'}</button><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.sector || '업종 확인중')} <span class="status-badge ${status === '진행중' ? 'active' : ''}">${escapeHtml(status)}</span></small></div></div></td><td>${escapeHtml(item.dates)}</td><td>${escapeHtml(item.price || '공시 확인중')}</td><td class="broker">${escapeHtml(item.broker || '확인중')}</td><td>${score === null ? '<span class="pending-score">분석 대기</span>' : `<span class="score"><i style="--score:${score}%;--score-color:${scoreColor(score)}"></i>${score}점</span>`}</td><td><button class="view-button" data-detail="${id}">분석 보기</button></td></tr>`;
   }).join('') : `<tr><td colspan="6"><div class="empty-state"><span>◎</span><b>${escapeHtml(empty)}</b><p>${monthly.length ? '검색어 또는 필터를 변경해 보세요.' : '새 공시가 등록되면 해당 월 일정에 표시됩니다.'}</p></div></td></tr>`;
+  renderCalendar(entries);
   const picks = [...scored].filter(item => scoreOf(item) >= 70).sort((a, b) => scoreOf(b) - scoreOf(a)).slice(0, 3);
   $('#pickGrid').innerHTML = picks.map((item, i) => `<article class="pick-card ${i === 0 ? 'featured' : ''}"><span class="tag">${demoMode ? 'SAMPLE' : i === 0 ? 'TOP SIGNAL' : 'WATCHLIST'}</span><div class="score-pill">${scoreOf(item)}</div><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.reason)}</p><div class="signals">${item.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><button class="card-detail" data-detail="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.name)} 분석 보기">↗</button></article>`).join('') || '<div class="analysis-empty"><b>근거가 모이면 분석이 시작됩니다.</b><p>청약 일정은 자동 갱신됩니다. 기관 수요·확약·유통물량 자료가 부족한 종목은 점수를 표시하지 않습니다.</p></div>';
 }
+function renderCalendar(entries) {
+  const grid = $('#calendarGrid');
+  const [year, mon] = currentMonth.split('-').map(Number);
+  const firstDow = new Date(Date.UTC(year, mon - 1, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+  const cells = Array(firstDow).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => `${currentMonth}-${String(i + 1).padStart(2, '0')}`));
+  while (cells.length % 7) cells.push(null);
+  const byDay = day => entries.filter(item => item.subscription_start && item.subscription_end && item.subscription_start <= day && day <= item.subscription_end);
+  grid.innerHTML = cells.map(day => {
+    if (!day) return '<div class="calendar-cell is-empty"></div>';
+    const items = byDay(day);
+    const shown = items.slice(0, 3);
+    return `<div class="calendar-cell${day === today ? ' is-today' : ''}"><span class="calendar-date">${Number(day.slice(8))}</span><div class="calendar-items">${shown.map(item => {
+      const score = scoreOf(item);
+      return `<button class="calendar-pill" data-detail="${escapeHtml(item.id)}" style="--pill-color:${score === null ? '#909b94' : scoreColor(score)}" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>`;
+    }).join('')}${items.length > shown.length ? `<span class="calendar-more">+${items.length - shown.length}개 더</span>` : ''}</div></div>`;
+  }).join('');
+}
+function setViewMode(mode) {
+  viewMode = mode; store('gongmo-radar-view', mode);
+  $('#listView').hidden = mode !== 'list'; $('#calendarView').hidden = mode !== 'calendar';
+  document.querySelectorAll('#viewSwitch button').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.view === mode)));
+}
+$('#viewSwitch').addEventListener('click', event => { const btn = event.target.closest('[data-view]'); if (btn) setViewMode(btn.dataset.view); });
 function changeMonth(delta) { const date = new Date(`${currentMonth}-01T00:00:00Z`); date.setUTCMonth(date.getUTCMonth() + delta); currentMonth = date.toISOString().slice(0, 7); render(); }
 $('#prevMonth').addEventListener('click', () => changeMonth(-1)); $('#nextMonth').addEventListener('click', () => changeMonth(1));
 $('#todayMonth').addEventListener('click', () => { currentMonth = koreaDate().slice(0, 7); render(); });
@@ -160,7 +186,7 @@ async function connectChat() {
       else if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) { chatStatus('재연결중'); $('#presenceText').textContent = '라운지 연결 재시도중'; }
     });
 }
-render(); renderMessages(); loadListings(); connectChat();
+setViewMode(viewMode); render(); renderMessages(); loadListings(); connectChat();
 setInterval(() => { if (!document.hidden && db) loadMessages().catch(() => {}); }, 30000);
 setInterval(() => { if (!document.hidden && db) loadListings(); }, 300000);
 window.addEventListener('online', () => { loadListings(); if (db) loadMessages().catch(() => {}); });
