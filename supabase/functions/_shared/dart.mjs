@@ -82,25 +82,36 @@ export function normalizeOffering(payload, report, text) {
     is_published: !(report.rm || '').includes('철'), source_payload: { evidence, general: detail, securities: stocks }, updated_at: new Date().toISOString()
   } };
 }
-export function createDartClient(key, fetcher = fetch) {
+export function createDartClient(key, fetcher = fetch, { retryDelayMs = 3000 } = {}) {
   if (!/^[a-zA-Z0-9]{40}$/.test(key || '')) throw new Error('DART_API_KEY에 유효한 40자리 키를 설정해 주세요.');
   async function request(endpoint, params, binary = false) {
     const query = new URLSearchParams({ ...params, crtfc_key: key });
-    // Never include URL in errors: it contains the private API key.
-    let response;
-    try { response = await fetcher('https://opendart.fss.or.kr/api/' + endpoint + '?' + query, { signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(25000) : undefined }); }
-    catch (error) {
-      const reason = String(error?.message || error?.name || 'unknown').replace(/https?:\/\/\S+/g, 'URL hidden').slice(0, 160);
-      throw new Error('OpenDART 네트워크 요청 실패: ' + reason);
+    // 해외(GitHub Actions)에서 원문 ZIP을 받으면 본문 다운로드 중 시간 초과가 잦다.
+    // 응답 본문까지 포함해 재시도하고, 일시적 서버 오류(5xx·429)도 재시도한다.
+    const timeoutMs = binary ? 90000 : 45000;
+    let body, lastError;
+    for (let attempt = 0; attempt < 3 && body === undefined; attempt++) {
+      if (attempt) await new Promise(resolve => setTimeout(resolve, attempt * retryDelayMs));
+      let response;
+      try {
+        response = await fetcher('https://opendart.fss.or.kr/api/' + endpoint + '?' + query, { signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(timeoutMs) : undefined });
+        if (!response.ok) { lastError = new Error('OpenDART HTTP ' + response.status); if (response.status >= 500 || response.status === 429) continue; throw lastError; }
+        body = binary ? new Uint8Array(await response.arrayBuffer()) : await response.json();
+      } catch (error) {
+        if (response && !response.ok && response.status < 500 && response.status !== 429) throw error;
+        // Never include URL in errors: it contains the private API key.
+        const reason = String(error?.message || error?.name || 'unknown').replace(/https?:\/\/\S+/g, 'URL hidden').slice(0, 160);
+        lastError = new Error('OpenDART 네트워크 요청 실패: ' + reason);
+      }
     }
-    if (!response.ok) throw new Error('OpenDART HTTP ' + response.status);
+    if (body === undefined) throw lastError;
     if (binary) {
-      const data = new Uint8Array(await response.arrayBuffer());
+      const data = body;
       if (data.length > 25000000) throw new Error('공시 원문 크기 제한 초과');
       if (data[0] !== 0x50 || data[1] !== 0x4b) throw new Error('공시 원문 ZIP을 받지 못했습니다.');
       return data;
     }
-    const json = await response.json();
+    const json = body;
     if (json.status === '013') return { list: [], group: [], total_page: 0 };
     if (json.status !== '000') throw new DartError(json.status);
     return json;

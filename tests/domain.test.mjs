@@ -42,6 +42,22 @@ test('공시 목록은 100건 이후 페이지도 조회하고 잘못된 키를 
   const bad = createDartClient('a'.repeat(40), async () => ({ ok: true, json: async () => ({ status: '010' }) }));
   await assert.rejects(bad.list({}), /오류 010/);
 });
+test('원문 다운로드 도중 시간 초과나 일시 오류는 재시도하고 키는 숨긴다', async () => {
+  let calls = 0;
+  const zip = new Uint8Array([0x50, 0x4b, 1, 2]);
+  const flaky = createDartClient('a'.repeat(40), async () => {
+    calls++;
+    if (calls === 1) return { ok: false, status: 503 };
+    if (calls === 2) return { ok: true, arrayBuffer: async () => { throw new Error('The operation was aborted due to timeout'); } };
+    return { ok: true, arrayBuffer: async () => zip.buffer };
+  }, { retryDelayMs: 0 });
+  assert.deepEqual([...await flaky.document('1')], [...zip]); assert.equal(calls, 3);
+  const down = createDartClient('a'.repeat(40), async url => { throw new Error('connect failed ' + url); }, { retryDelayMs: 0 });
+  await assert.rejects(down.document('1'), error => /네트워크 요청 실패/.test(error.message) && !/crtfc_key|aaaa/.test(error.message));
+  let notFound = 0;
+  const missing = createDartClient('a'.repeat(40), async () => { notFound++; return { ok: false, status: 404 }; }, { retryDelayMs: 0 });
+  await assert.rejects(missing.document('1'), /HTTP 404/); assert.equal(notFound, 1);
+});
 test('이미 반영한 정정 공시는 다시 만들지 않는다', async () => {
   const client = { list: async params => params.pblntf_detail_ty ? [{ ...report, report_nm: '증권신고서(지분증권)' }] : [], equity: () => { throw new Error('should not be called'); } };
   const result = await collectOfferings({ client, unzip: () => ({}), now: new Date('2026-10-02T00:00:00Z'), existing: [{ source_key: 'dart-ipo:00001234', dart_receipt_no: report.rcept_no, source_payload: { parser_version: PARSER_VERSION } }] });
