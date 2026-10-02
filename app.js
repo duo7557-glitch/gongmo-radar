@@ -30,6 +30,38 @@ const hotReasons = item => {
   return reasons;
 };
 const hotBadge = item => { const reasons = hotReasons(item); return reasons.length ? `<span class="hot-badge" title="${escapeHtml('핫한 공모주 · ' + reasons.join(' · '))}">🔥 HOT</span>` : ''; };
+
+// 상세 창 핵심 체크리스트: 공시에서 자동으로 확인되는 숫자만 보여주고, 없으면 추측하지 않고 "확인 불가"로 표시한다.
+const fmtWon = n => Math.round(n).toLocaleString('ko-KR') + '원';
+const fmtEok = n => n >= 1e12 ? (n / 1e12).toFixed(2) + '조원' : Math.round(n / 1e8).toLocaleString('ko-KR') + '억원';
+function checklistRows(item) {
+  const p = item.source_payload || {}, s = p.score_signals || {}, beforeDemand = !p.final_terms_receipt_no;
+  const unknown = why => '<span class="check-unknown">확인 불가' + (why ? ' · ' + why : '') + '</span>';
+  const [low, high] = Array.isArray(p.price_band) ? p.price_band : [], confirmed = p.confirmed_price, shares = p.offer_shares;
+  const position = !confirmed || !high ? null : confirmed > high ? '희망가 상단 초과' : confirmed === high ? '희망가 상단' : low && confirmed < low ? '희망가 하단 미만' : '희망가 밴드 안';
+  const rows = [
+    ['공모가', confirmed ? fmtWon(confirmed) + (position ? ' · ' + position : '') + (high ? ' (희망 ' + fmtWon(low) + '~' + fmtWon(high) + ')' : '') : high ? '희망 ' + fmtWon(low) + '~' + fmtWon(high) + ' · 확정 전' : unknown('공시 확인 필요'), '확정 공모가가 희망 밴드 상단을 넘으면 기관 수요가 강했다는 뜻입니다.'],
+    ['기관 수요예측 경쟁률', s.demand_ratio ? s.demand_ratio.value.toLocaleString('ko-KR') + ' : 1' : unknown(beforeDemand ? '수요예측 결과 공시 전' : '원문에서 확인 안 됨'), '기관투자자들이 배정 물량보다 몇 배 많이 신청했는지입니다.'],
+    ['의무보유확약 비율', s.lockup_rate ? s.lockup_rate.value + '%' : unknown(beforeDemand ? '수요예측 결과 공시 전' : '원문에서 확인 안 됨'), '기관이 상장 후 일정 기간 팔지 않겠다고 약속한 비율입니다. 높을수록 상장 직후 매물이 적습니다.'],
+    ['상장일 유통가능물량', s.float_rate ? s.float_rate.value + '%' : unknown('원문에서 확인 안 됨'), '상장 첫날 바로 팔 수 있는 주식 비율입니다. 낮을수록 매물 부담이 적습니다.'],
+    ['공모주식수 · 공모금액', shares ? shares.toLocaleString('ko-KR') + '주 · ' + (confirmed ? fmtEok(shares * confirmed) + ' (확정가 기준)' : high ? fmtEok(shares * low) + '~' + fmtEok(shares * high) + ' (희망가 기준)' : unknown()) : unknown(), '공모주식수 × 공모가로 계산합니다.'],
+    ['구주매출 비중', shares && p.seller_shares != null ? (p.seller_shares ? Math.round(p.seller_shares / shares * 100) + '% (' + p.seller_shares.toLocaleString('ko-KR') + '주)' : '0% · 전량 신주') : unknown(), '기존 주주가 이번 공모에서 파는 주식 비중입니다. 높으면 회사가 아닌 기존 주주에게 돈이 갑니다.'],
+    ['상장일 가격 범위', confirmed ? fmtWon(confirmed * 0.6) + ' ~ ' + fmtWon(confirmed * 4) + ' <small>= 공모가 × 60%~400%, 호가단위 반영 전</small>' : unknown('확정 공모가 공시 후 계산'), '현행 신규상장 제도의 상장 첫날 가격 범위입니다. 최고가 도달을 가정하면 안 됩니다.']
+  ];
+  return '<section class="detail-checklist"><h3>핵심 체크리스트</h3><p class="check-note">공시(DART)에서 자동 확인한 값입니다. 확인되지 않은 값은 추측하지 않습니다.</p><dl>' + rows.map(([label, value, help]) => '<div><dt>' + label + '</dt><dd>' + value + '<small>' + help + '</small></dd></div>').join('') + '</dl>' +
+    (confirmed ? '<div class="breakeven" data-price="' + confirmed + '"><h4>비용 포함 손익분기 계산</h4><label>배정 주수 <input type="number" min="1" value="1" data-be="shares"></label><label>청약수수료(원) <input type="number" min="0" value="2000" data-be="fee"></label><label>매도 수수료·세금(가정, %) <input type="number" min="0" step="0.01" value="0.2" data-be="rate"></label><p data-be="out"></p></div>' : '') +
+    '<p class="check-note">수요예측 경쟁률이나 확약 비율은 상장 후 주가를 보장하지 않습니다. 증권사별 청약수수료와 세율은 실제 조건을 확인해 주세요.</p></section>';
+}
+function wireBreakeven(root) {
+  const box = root.querySelector('.breakeven'); if (!box) return;
+  const price = Number(box.dataset.price), get = key => Number(box.querySelector('[data-be="' + key + '"]').value) || 0;
+  const update = () => {
+    const shares = Math.max(1, Math.floor(get('shares'))), fee = get('fee'), rate = get('rate') / 100;
+    const breakeven = (price * shares + fee) / (shares * (1 - rate));
+    box.querySelector('[data-be="out"]').innerHTML = '손익분기 매도가 <b>' + fmtWon(Math.ceil(breakeven)) + '</b> (공모가 대비 +' + ((breakeven / price - 1) * 100).toFixed(2) + '%)<small>= (공모가 ' + fmtWon(price) + ' × ' + shares + '주 + 수수료 ' + fmtWon(fee) + ') ÷ (' + shares + '주 × (1 − ' + (rate * 100).toFixed(2) + '%))</small>';
+  };
+  box.addEventListener('input', update); update();
+}
 const scoreColor = score => score >= 80 ? '#3fa265' : score >= 70 ? '#e49b28' : '#909b94';
 const sourceUrl = (value, host) => { try { const u = new URL(value); return u.protocol === 'https:' && u.hostname === host ? u.href : null; } catch { return null; } };
 const fromDbListing = row => ({ ...row, month: row.subscription_start?.slice(0, 7), dates: `${dateLabel(row.subscription_start)} — ${dateLabel(row.subscription_end)}`, price: row.price_text, tags: Array.isArray(row.tags) ? row.tags : [] });
@@ -126,7 +158,8 @@ document.addEventListener('click', event => {
   if (detailButton) {
     const item = displayedData().find(row => String(row.id) === detailButton.dataset.detail); if (!item) return;
     const dart = sourceUrl(item.source_dart_url, 'dart.fss.or.kr'), kind = sourceUrl(item.source_kind_url, 'kind.krx.co.kr');
-    $('#dialogContent').innerHTML = `<p class="eyebrow"><span></span> ${demoMode ? 'SAMPLE ANALYSIS' : 'IPO OVERVIEW'}</p><h2 class="detail-title">${escapeHtml(item.name)} ${hotBadge(item)}</h2><p class="detail-sub">${escapeHtml(item.sector || '업종 확인중')} · ${escapeHtml(statusOf(item))} · ${scoreLabel(item)}</p><div class="detail-grid"><div><span>청약 기간</span><b>${escapeHtml(item.dates)}</b></div><div><span>공모가</span><b>${escapeHtml(item.price || '확인중')}</b></div><div><span>인수인 · 주관사</span><b>${escapeHtml(item.broker || '확인중')}</b></div>${hotReasons(item).length ? `<div><span>핫한 이유</span><b>${escapeHtml(hotReasons(item).join(' · '))}</b></div>` : ''}<div><span>분석 의견</span><b>${escapeHtml(item.reason || '기관 수요예측과 유통물량 확인 후 분석됩니다.')}</b></div></div><div class="source-links">${dart ? `<a href="${escapeHtml(dart)}" target="_blank" rel="noopener noreferrer">DART 원문 ↗</a>` : ''}${kind ? `<a href="${escapeHtml(kind)}" target="_blank" rel="noopener noreferrer">KIND 원문 ↗</a>` : ''}</div><p class="detail-caution">${demoMode ? '가상 기업의 예시 데이터입니다.' : '일정과 가격은 정정 공시로 변경될 수 있습니다. 공시상 청약기일이 일반 투자자 청약일과 일치하는지 원문에서 확인해 주세요.'} 분석 점수는 공개 지표의 비교 결과입니다.</p>`;
+    $('#dialogContent').innerHTML = `<p class="eyebrow"><span></span> ${demoMode ? 'SAMPLE ANALYSIS' : 'IPO OVERVIEW'}</p><h2 class="detail-title">${escapeHtml(item.name)} ${hotBadge(item)}</h2><p class="detail-sub">${escapeHtml(item.sector || '업종 확인중')} · ${escapeHtml(statusOf(item))} · ${scoreLabel(item)}</p><div class="detail-grid"><div><span>청약 기간</span><b>${escapeHtml(item.dates)}</b></div><div><span>공모가</span><b>${escapeHtml(item.price || '확인중')}</b></div><div><span>인수인 · 주관사</span><b>${escapeHtml(item.broker || '확인중')}</b></div>${hotReasons(item).length ? `<div><span>핫한 이유</span><b>${escapeHtml(hotReasons(item).join(' · '))}</b></div>` : ''}<div><span>분석 의견</span><b>${escapeHtml(item.reason || '기관 수요예측과 유통물량 확인 후 분석됩니다.')}</b></div></div>${demoMode ? '' : checklistRows(item)}<div class="source-links">${dart ? `<a href="${escapeHtml(dart)}" target="_blank" rel="noopener noreferrer">DART 원문 ↗</a>` : ''}${kind ? `<a href="${escapeHtml(kind)}" target="_blank" rel="noopener noreferrer">KIND 원문 ↗</a>` : ''}</div><p class="detail-caution">${demoMode ? '가상 기업의 예시 데이터입니다.' : '일정과 가격은 정정 공시로 변경될 수 있습니다. 공시상 청약기일이 일반 투자자 청약일과 일치하는지 원문에서 확인해 주세요.'} 분석 점수는 공개 지표의 비교 결과입니다.</p>`;
+    wireBreakeven($('#dialogContent'));
     $('#detailDialog').showModal();
   }
   const report = event.target.closest('[data-report]');
