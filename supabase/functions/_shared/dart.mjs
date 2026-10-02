@@ -1,6 +1,6 @@
 // Pure normalization + injectable HTTP layer, shared by local runner and Edge Function.
 // Bump when parsing rules change so previously imported rows are recomputed once.
-export const PARSER_VERSION = 2;
+export const PARSER_VERSION = 3;
 const OFFERING_FILING = /증권신고서.*(?:지분증권|증권예탁증권)/;
 export class DartError extends Error {
   constructor(status) { super(`OpenDART 오류 ${status}`); this.status = status; }
@@ -79,7 +79,7 @@ export function normalizeOffering(payload, report, text) {
     source_dart_url: 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + report.rcept_no,
     status: (report.rm || '').includes('철') ? '철회' : '예정', score: null, score_status: 'pending',
     reason: '기관 수요예측·의무보유확약·유통물량 자료 확인 후 분석됩니다.', tags: ['DART 공시', '분석 대기'],
-    is_published: !(report.rm || '').includes('철'), source_payload: { evidence, general: detail, securities: stocks }, updated_at: new Date().toISOString()
+    is_published: !(report.rm || '').includes('철'), source_payload: { evidence, general: detail, securities: stocks, price_band: band ? band.map(v => Number(v.replaceAll(',', ''))) : null }, updated_at: new Date().toISOString()
   } };
 }
 export function createDartClient(key, fetcher = fetch, { retryDelayMs = 3000 } = {}) {
@@ -171,7 +171,7 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
           const price = confirmedPrice(documentText(await client.document(finalTerms.rcept_no), unzip));
           normalized.listing.source_payload.final_terms_receipt_no = finalTerms.rcept_no;
           normalized.listing.source_dart_url = 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + finalTerms.rcept_no;
-          if (price) normalized.listing.price_text = `${price}원 (확정 공모가)`;
+          if (price) { normalized.listing.price_text = `${price}원 (확정 공모가)`; normalized.listing.source_payload.confirmed_price = Number(price.replaceAll(',', '')); }
         }
         const withdrawal = history?.find(row => /철회/.test(row.report_nm || '') && row.rcept_no > report.rcept_no);
         if (withdrawal) Object.assign(normalized.listing, { status: '철회', is_published: false, source_dart_url: 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + withdrawal.rcept_no });

@@ -24,7 +24,8 @@ try {
   const due = rows.filter(isDue), client = createDartClient(DART_API_KEY); let updated = 0;
   for (const row of due) {
     try {
-      const document = documentText(await client.document(row.dart_receipt_no), unzipSync);
+      // 수요예측 경쟁률·확약 비율은 [발행조건확정] 공시에만 실리므로 있으면 그 원문을 읽는다.
+      const document = documentText(await client.document(row.source_payload?.final_terms_receipt_no || row.dart_receipt_no), unzipSync);
       const scored = applyAutomaticScore(row, document);
       await rest(`ipo_listings?id=eq.${row.id}`, { method: 'PATCH', body: JSON.stringify({ ...scored, updated_at: new Date().toISOString() }) });
       updated++;
