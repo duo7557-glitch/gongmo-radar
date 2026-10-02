@@ -135,6 +135,8 @@
   }
 
   monthSelect.addEventListener('change', () => { selectedMonth = monthSelect.value; render(); });
+  // ranking.js가 Supabase에서 더 최신 시세를 받으면 미니 그래프를 다시 그린다.
+  window.addEventListener('gongmo:price-history', () => render());
   document.querySelector('#includeSpac').addEventListener('click', () => { includeSpac = !includeSpac; render(); });
   document.querySelectorAll('#returnMetricTabs button').forEach(btn => {
     btn.addEventListener('click', () => {

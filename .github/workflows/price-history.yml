@@ -1,0 +1,21 @@
+name: Price history
+
+on:
+  schedule:
+    # 평일 장 마감 후 두 번(한 번 실패해도 다시 갱신): UTC 07:30/10:30 = 한국시간 16:30/19:30
+    - cron: '30 7,10 * * 1-5'
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node tools/price-history.mjs
+        env:
+          SUPABASE_URL: https://xwclwdxerhxrjmpexzga.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
