@@ -38,7 +38,9 @@ try {
   // DART_BEGIN_DATE/END_DATE(YYYYMMDD)가 있으면 과거 구간을 백필합니다. 없으면 기본(최근 85일)으로 동작합니다.
   const begin = process.env.DART_BEGIN_DATE, end = process.env.DART_END_DATE;
   const range = begin && end ? { begin, end } : undefined;
-  const result = await collectOfferings({ client, unzip: unzipSync, existing, range });
+  // 매일 갱신되는 KIND 신규상장(공모) 종목코드: 이미 상장한 종목은 원문 문구가 달라도 공모주로 인정한다.
+  const knownListings = new Set((await rest('ipo_price_history?select=code').catch(() => [])).map(row => row.code));
+  const result = await collectOfferings({ client, unzip: unzipSync, existing, range, knownListings });
 
   for (const listing of result.listings) {
     await rest('ipo_listings?on_conflict=source_key', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify(listing) });

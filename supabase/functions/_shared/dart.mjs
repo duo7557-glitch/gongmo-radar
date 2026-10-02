@@ -37,7 +37,9 @@ export function ipoEvidence(text) {
     /(?:금번|이번|본)\s*(?:주식\s*)?(?:공모|모집)[^.]{0,220}(?:코스닥|유가증권|코스피)[^.]{0,90}(?:신규\s*상장|이전\s*상장)[^.]{0,90}(?:위한|위해|목적)/,
     /(?:금번|이번|본)\s*(?:주식\s*)?(?:공모|모집)[^.]{0,100}(?:신규\s*상장|이전\s*상장)[^.]{0,80}(?:위한|위해|목적)/,
     // "본 주식은 코스닥시장 상장을 목적으로 모집(매출)하는 것으로" (기도산업 등)
-    /(?:금번|이번|본)\s*주식은\s*(?:코스닥|유가증권|코스피)\s*시장\s*(?:신규\s*)?상장을\s*(?:목적|위한|위해)/,
+    /(?:금번|이번|본)\s*주식은[^.]{0,30}?(?:코스닥|유가증권|코스피)\s*시장\s*(?:신규\s*)?상장을\s*(?:목적|위한|위해)/,
+    // 상장 심사 중인 공모의 위험 항목: "공모일정 변동가능성 및 상장예비심사결과 효력 종료에 관한 위험" (채비)
+    /공모\s*일정[^.]{0,40}상장\s*예비\s*심사/,
     // 스팩: "코스닥시장 상장을 위한 최초의 모집", "최초로 모집한 주권 … 90일 이내 … 상장"
     /(?:코스닥|유가증권|코스피)\s*시장\s*상장을\s*위한\s*최초(?:의)?\s*(?:모집|공모)/,
     /최초(?:로)?\s*모집한\s*주권[^.]{0,60}90\s*일\s*이내[^.]{0,40}상장/
@@ -56,13 +58,14 @@ export function priceBand(text) {
   return m ? [m[1], m[2]] : null;
 }
 const groupRows = (groups, title) => groups.filter(g => String(g.title).replaceAll(' ', '') === title).flatMap(g => g.list || []);
-export function normalizeOffering(payload, report, text) {
+// kindListed: KIND 신규상장(공모) 목록에 종목코드가 있으면 원문 문구가 달라도(예: 케이뱅크) 실제 공모 상장으로 인정한다.
+export function normalizeOffering(payload, report, text, { kindListed = false } = {}) {
   const groups = payload.group || [];
   const general = groupRows(groups, '일반사항').filter(row => row.rcept_no === report.rcept_no);
   if (general.length !== 1) return { review: '최신 정정 공시와 API 요약 접수번호가 일치하지 않거나 일반사항이 모호합니다.' };
   const detail = general[0], date = datesFromText(detail.sbd);
   if (!date) return { review: '청약기일이 누락되었거나 복수 구간으로 표시되었습니다.' };
-  const evidence = ipoEvidence(text);
+  const evidence = ipoEvidence(text) || (kindListed ? 'KIND 신규상장(공모) 종목으로 확인' : null);
   if (!evidence) return { review: '원문에서 이번 공모의 신규·이전상장 근거를 확인하지 못했습니다.' };
   const stocks = groupRows(groups, '증권의종류').filter(row => row.rcept_no === report.rcept_no);
   if (!stocks.length || !stocks.some(row => /일반\s*공모/.test(row.slmthn || ''))) return { review: '일반공모 모집방법을 확인하지 못했습니다.' };
@@ -126,7 +129,7 @@ export function createDartClient(key, fetcher = fetch, { retryDelayMs = 3000 } =
   }
   return { list, equity: (code, range) => request('estkRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), depositary: (code, range) => request('stkdpRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), document: no => request('document.xml', { rcept_no: no }, true) };
 }
-export async function collectOfferings({ client, unzip, now = new Date(), existing = [], range: overrideRange } = {}) {
+export async function collectOfferings({ client, unzip, now = new Date(), existing = [], range: overrideRange, knownListings = null } = {}) {
   const range = overrideRange || dateRange(now);
   const todayStr = dateRange(now).end;
   // 외국 기업은 주식 대신 증권예탁증권(DR, 공시유형 C005)으로 상장하므로 함께 조회한다.
@@ -160,7 +163,7 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
         if (matched) report = matched;
       }
       const text = documentText(await client.document(report.rcept_no), unzip);
-      const normalized = normalizeOffering(payload, report, text);
+      const normalized = normalizeOffering(payload, report, text, { kindListed: Boolean(knownListings?.has(candidate.stock_code || report.stock_code)) });
       if (normalized.listing) {
         const newest = (history || [candidate]).filter(row => OFFERING_FILING.test(row.report_nm || '')).reduce((a, b) => (b.rcept_no > a.rcept_no ? b : a), candidate);
         normalized.listing.source_payload.latest_receipt_no = newest.rcept_no;

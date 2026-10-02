@@ -112,6 +112,15 @@ test('기도산업·스팩식 상장 문구도 인식하지만 유상증자는 �
   assert.ok(ipoEvidence('또한, 코스닥시장 상장을 위한 최초의 모집 이후에는 채무증권을 발행할 수 없습니다'));
   assert.ok(ipoEvidence('⑤ 최초로 모집한 주권에 대한 주금납입일부터 90일 이내 증권시장에 상장할 것'));
   assert.equal(ipoEvidence('당사는 2024년 코스닥시장에 상장하였으며, 이번 모집은 시설자금 조달을 위한 주주배정 유상증자입니다.'), null);
+  // 상장사 유상증자 신고서가 예전 상장 당시의 상장주선인 의무를 언급해도 공모주로 보지 않는다(이노스페이스·클로봇 사례).
+  assert.equal(ipoEvidence('공모를 통해 조달한 공모자금 (상장주선인 의무인수분 포함)은 시설투자에 사용합니다.'), null);
+  assert.ok(ipoEvidence('공모일정 변동가능성 및 상장예비심사결과 효력 종료에 관한 위험'));
+  assert.ok(ipoEvidence('본 주식은 한국거래소 내 코스닥시장 상장을 목적으로 모집(매출)하는 것으로'));
+});
+test('KIND 신규상장 목록에 있는 종목은 원문 문구가 달라도 공모주로 인정한다', () => {
+  const text = '당행은 유가증권시장 상장 후 6개월간 추가 발행을 하지 않습니다.';
+  assert.ok(normalizeOffering(payload, report, text).review);
+  assert.equal(normalizeOffering(payload, report, text, { kindListed: true }).listing.source_payload.evidence, 'KIND 신규상장(공모) 종목으로 확인');
 });
 test('외국 기업의 증권예탁증권(DR) 공모도 DR 요약으로 자동 게시한다', async () => {
   const dr = { ...report, report_nm: '증권신고서(증권예탁증권)' };
