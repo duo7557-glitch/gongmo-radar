@@ -1,6 +1,19 @@
 (function () {
-  const dataset = window.GONGMO_PERFORMANCE;
-  if (!dataset) return;
+  const datasets = { ...window.GONGMO_PERFORMANCE_MONTHS };
+  if (window.GONGMO_PERFORMANCE) datasets[window.GONGMO_PERFORMANCE.month] = window.GONGMO_PERFORMANCE;
+  const months = Object.keys(datasets).sort().reverse();
+  if (!months.length) return;
+  let selectedMonth = months[0];
+  const monthLabel = month => `${month.slice(0, 4)}년 ${Number(month.slice(5))}월`;
+  const heading = document.querySelector('#performance .section-heading');
+  const controls = document.createElement('div');
+  controls.className = 'performance-controls';
+  const monthSelect = document.createElement('select');
+  monthSelect.id = 'performanceMonth';
+  monthSelect.setAttribute('aria-label', '상장 성과 기준월');
+  for (const month of months) monthSelect.add(new Option(monthLabel(month), month));
+  controls.append(monthSelect, document.querySelector('#includeSpac'));
+  heading.append(controls);
   let includeSpac = false;
   let returnMetric = 'dayOneReturn';
   let lastEntries = [];
@@ -13,6 +26,11 @@
   const escape = s => String(s).replace(/[&<>"']/g, x => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 
   function render() {
+    const dataset = datasets[selectedMonth];
+    heading.querySelector('h2').textContent = `${monthLabel(selectedMonth)}, 상장 후 성과`;
+    document.querySelector('#performance .performance-footnote').textContent = `상장일을 1일째로 계산하며 휴장일은 제외합니다. 수익률은 수수료·세금 전입니다. ${dataset.asOf.replaceAll('-', '.')}까지 확인한 자료로, 5거래일 미만 종목은 5일 성과 집계에서 제외합니다.`;
+    const tooltip = document.querySelector('#sparkTooltip');
+    if (tooltip) tooltip.hidden = true;
     const entries = dataset.items.filter(item => includeSpac || !item.spac).map(PerformanceCore.analyze);
     lastEntries = entries;
     const completed = entries.filter(item => item.fifth);
@@ -23,7 +41,7 @@
     document.querySelector('#includeSpac').setAttribute('aria-pressed', String(includeSpac));
     document.querySelector('#includeSpac').textContent = includeSpac ? '스팩 제외' : '스팩 포함';
     renderReturnChart(entries);
-    renderPriceChart(entries);
+    renderPriceChart(entries.map(item => ({ ...item, days: item.days.slice(0, 5) })));
   }
 
   // 공모가 대비 수익률 비교: 가로 디버징 막대, 0을 가운데 두고 양쪽으로 자랍니다.
@@ -115,6 +133,7 @@
     grid.querySelectorAll('.spark-card').forEach((card, i) => attachSparkHover(card, entries[i]));
   }
 
+  monthSelect.addEventListener('change', () => { selectedMonth = monthSelect.value; render(); });
   document.querySelector('#includeSpac').addEventListener('click', () => { includeSpac = !includeSpac; render(); });
   document.querySelectorAll('#returnMetricTabs button').forEach(btn => {
     btn.addEventListener('click', () => {
