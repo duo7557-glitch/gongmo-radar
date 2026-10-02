@@ -1,6 +1,6 @@
 // Pure normalization + injectable HTTP layer, shared by local runner and Edge Function.
 // Bump when parsing rules change so previously imported rows are recomputed once.
-export const PARSER_VERSION = 3;
+export const PARSER_VERSION = 4;
 const OFFERING_FILING = /증권신고서.*(?:지분증권|증권예탁증권)/;
 export class DartError extends Error {
   constructor(status) { super(`OpenDART 오류 ${status}`); this.status = status; }
@@ -68,6 +68,11 @@ export function normalizeOffering(payload, report, text, { kindListed = false } 
   const evidence = ipoEvidence(text) || (kindListed ? 'KIND 신규상장(공모) 종목으로 확인' : null);
   if (!evidence) return { review: '원문에서 이번 공모의 신규·이전상장 근거를 확인하지 못했습니다.' };
   const stocks = groupRows(groups, '증권의종류').filter(row => row.rcept_no === report.rcept_no);
+  // 공모주식수와 구주매출(매출인 매도 주식수). 값이 '-'면 0으로 보고, 숫자가 아니면 확인 불가(null)로 둔다.
+  const shareCount = value => { const text = String(value ?? '').trim(); if (text === '-' || text === '') return 0; const n = Number(text.replaceAll(',', '')); return Number.isFinite(n) ? n : null; };
+  const offerShares = stocks.reduce((sum, row) => (sum === null || shareCount(row.stkcnt) === null ? null : sum + shareCount(row.stkcnt)), 0) || null;
+  const sellerRows = groupRows(groups, '매출인에관한사항').filter(row => row.rcept_no === report.rcept_no);
+  const sellerShares = sellerRows.length ? sellerRows.reduce((sum, row) => (sum === null || shareCount(row.slstk) === null ? null : sum + shareCount(row.slstk)), 0) : 0;
   if (!stocks.length || !stocks.some(row => /일반\s*공모/.test(row.slmthn || ''))) return { review: '일반공모 모집방법을 확인하지 못했습니다.' };
   const prices = [...new Set(stocks.map(row => row.slprc).filter(p => p && p !== '-'))];
   const brokers = [...new Set(groupRows(groups, '인수인정보').filter(row => row.rcept_no === report.rcept_no).map(row => row.actnmn).filter(n => n && n !== '-'))];
@@ -82,7 +87,7 @@ export function normalizeOffering(payload, report, text, { kindListed = false } 
     source_dart_url: 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + report.rcept_no,
     status: (report.rm || '').includes('철') ? '철회' : '예정', score: null, score_status: 'pending',
     reason: '기관 수요예측·의무보유확약·유통물량 자료 확인 후 분석됩니다.', tags: ['DART 공시', '분석 대기'],
-    is_published: !(report.rm || '').includes('철'), source_payload: { evidence, general: detail, securities: stocks, price_band: band ? band.map(v => Number(v.replaceAll(',', ''))) : null }, updated_at: new Date().toISOString()
+    is_published: !(report.rm || '').includes('철'), source_payload: { evidence, general: detail, securities: stocks, price_band: band ? band.map(v => Number(v.replaceAll(',', ''))) : null, offer_shares: offerShares, seller_shares: sellerShares }, updated_at: new Date().toISOString()
   } };
 }
 export function createDartClient(key, fetcher = fetch, { retryDelayMs = 3000 } = {}) {
