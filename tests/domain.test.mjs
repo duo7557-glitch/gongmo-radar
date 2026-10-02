@@ -48,6 +48,28 @@ test('이미 반영한 정정 공시는 다시 만들지 않는다', async () =>
   assert.equal(result.listings.length, 0); assert.equal(result.review.length, 0);
 });
 
+test('과거 구간만 조회하는 백필은 조회 종료일 이후에 올라온 최신 정정본과 다시 맞춘다', async () => {
+  const older = { ...report, rcept_no: '20260618000356', rcept_dt: '20260618' };
+  const newer = { ...report, rcept_no: '20260623000402', rcept_dt: '20260623' };
+  const newerPayload = { group: [
+    { title: '일반사항', list: [{ ...newer, sbd: '2026.10.13 ~ 2026.10.14', pymd: '2026.10.16' }] },
+    { title: '증권의종류', list: [{ ...newer, slprc: '12,000', slmthn: '일반공모' }] },
+    { title: '인수인정보', list: [{ ...newer, actnmn: '검증증권' }] }
+  ] };
+  const text = '금번 공모는 코스닥시장 신규상장을 위한 일반공모입니다.';
+  const client = {
+    list: async params => params.corp_code ? [older, newer] : [{ ...older, report_nm: '증권신고서(지분증권)' }],
+    equity: async () => newerPayload,
+    document: async () => new Uint8Array()
+  };
+  const result = await collectOfferings({
+    client, unzip: () => ({ 'a.xml': new TextEncoder().encode(text) }),
+    now: new Date('2026-10-02T00:00:00Z'), range: { begin: '20260327', end: '20260619' }
+  });
+  assert.equal(result.review.length, 0);
+  assert.equal(result.listings.length, 1);
+  assert.equal(result.listings[0].dart_receipt_no, newer.rcept_no);
+});
 test('5거래일 성과는 휴장일을 건너뛰고 시초가 매수 수익률을 별도로 계산한다', () => {
   const sample = { listedAt: '2026-09-21', offerPrice: 10000, days: [
     { date: '2026-09-21', open: 25250, high: 40000, close: 36900 },

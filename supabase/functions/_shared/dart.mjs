@@ -97,6 +97,7 @@ export function createDartClient(key, fetcher = fetch) {
 }
 export async function collectOfferings({ client, unzip, now = new Date(), existing = [], range: overrideRange } = {}) {
   const range = overrideRange || dateRange(now);
+  const todayStr = dateRange(now).end;
   const reports = await client.list({ bgn_de: range.begin, end_de: range.end, pblntf_detail_ty: 'C001', last_reprt_at: 'N' });
   const companies = new Map();
   for (const report of reports) {
@@ -104,14 +105,25 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
     const prior = companies.get(report.corp_code);
     if (!prior || report.rcept_no > prior.rcept_no) companies.set(report.corp_code, report);
   }
+  // 과거 구간만 조회하는 백필(range.end가 오늘이 아님)에서는, 그 구간 "안에서" 고른 최신 정정본보다
+  // 더 최신 정정이 이미 올라와 있을 수 있다. estkRs 조회는 항상 전체 최신 기준으로 응답하므로
+  // 접수번호가 어긋나 전부 "검토 대기"로 빠지는 것을 막기 위해 오늘 기준 진짜 최신본으로 다시 맞춘다.
+  if (range.end !== todayStr) {
+    for (const [corpCode, candidate] of companies) {
+      const later = await client.list({ corp_code: corpCode, bgn_de: candidate.rcept_dt || range.begin, end_de: todayStr, pblntf_detail_ty: 'C001', last_reprt_at: 'N' });
+      const latest = later.reduce((best, row) => (!best || row.rcept_no > best.rcept_no) ? row : best, candidate);
+      companies.set(corpCode, latest);
+    }
+  }
   const listings = [], review = [];
   for (const report of companies.values()) {
     const previous = existing.find(row => row.source_key === 'dart-ipo:' + report.corp_code);
     // Persisted history is retained. Already imported revisions are not recomputed.
     if (previous?.dart_receipt_no === report.rcept_no && !report.rm?.includes('철')) continue;
     try {
-      // estkRs dates refer to initial filing, so include the previous year for revisions.
-      const payload = await client.equity(report.corp_code, { begin: String(Number(range.begin.slice(0, 4)) - 1) + '0101', end: range.end });
+      // estkRs는 항상 최신 기준으로 응답하므로 종료일을 오늘로 둬야 위에서 다시 맞춘 최신 정정본과 어긋나지 않는다.
+      // 시작일은 최초 신고서 기준이라 이전 연도부터 넉넉히 포함한다.
+      const payload = await client.equity(report.corp_code, { begin: String(Number(range.begin.slice(0, 4)) - 1) + '0101', end: todayStr });
       const text = documentText(await client.document(report.rcept_no), unzip);
       const normalized = normalizeOffering(payload, report, text);
       if (normalized.listing) listings.push(normalized.listing);
