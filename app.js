@@ -255,3 +255,19 @@ setViewMode(viewMode); render(); renderMessages(); loadListings(); connectChat()
 setInterval(() => { if (!document.hidden && db) loadMessages().catch(() => {}); }, 30000);
 setInterval(() => { if (!document.hidden && db) loadListings(); }, 300000);
 window.addEventListener('online', () => { loadListings(); if (db) loadMessages().catch(() => {}); });
+
+function updateSmallLotEstimate() {
+  const read = id => Math.max(0, Number(document.getElementById(id).value) || 0);
+  const price = read('miniIpoPrice'), minimumShares = Math.max(1, Math.floor(read('miniMinShares')));
+  const depositRate = Math.min(100, read('miniDepositRate')) / 100;
+  const allocatedShares = Math.floor(read('miniAllocated')), returnRate = Number(document.getElementById('miniReturnPct').value) || 0;
+  const fee = read('miniFee'), deposit = Math.ceil(price * minimumShares * depositRate);
+  const profit = allocatedShares ? price * allocatedShares * returnRate / 100 - fee : 0;
+  document.querySelector('.chicken-result div:nth-child(2) span').textContent = '청약 수수료 반영 손익(가정)';
+  $('#miniDepositResult').textContent = fmtWon(deposit);
+  $('#miniProfitResult').textContent = `${profit > 0 ? '+' : ''}${fmtWon(profit)}`;
+  $('#miniProfitResult').classList.toggle('is-loss', profit < 0);
+  $('#miniCalcNote').textContent = `최소 신청 ${minimumShares.toLocaleString('ko-KR')}주 · 배정 ${allocatedShares.toLocaleString('ko-KR')}주 가정 · 공모가 대비 ${returnRate}% 매도 · 수수료 ${fmtWon(fee)} 반영. 배정되면 증거금 외 잔금을 납부해야 합니다.`;
+}
+document.querySelectorAll('.chicken-fields input').forEach(input => input.addEventListener('input', updateSmallLotEstimate));
+updateSmallLotEstimate();
