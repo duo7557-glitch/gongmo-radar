@@ -35,7 +35,10 @@ try {
 
   const existing = await rest('ipo_listings?source_key=like.dart-ipo:*&select=*');
   const client = createDartClient(DART_API_KEY);
-  const result = await collectOfferings({ client, unzip: unzipSync, existing });
+  // DART_BEGIN_DATE/END_DATE(YYYYMMDD)가 있으면 과거 구간을 백필합니다. 없으면 기본(최근 85일)으로 동작합니다.
+  const begin = process.env.DART_BEGIN_DATE, end = process.env.DART_END_DATE;
+  const range = begin && end ? { begin, end } : undefined;
+  const result = await collectOfferings({ client, unzip: unzipSync, existing, range });
 
   for (const listing of result.listings) {
     await rest('ipo_listings?on_conflict=source_key', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify(listing) });

@@ -44,6 +44,7 @@ Deno.serve(async (request: Request) => {
   } catch (error) {
     // No raw network errors or credentials are logged/returned.
     if (runId) { try { await rest('ipo_sync_runs?id=eq.' + runId, { method: 'PATCH', body: JSON.stringify({ status: 'failed', finished_at: new Date().toISOString() }) }); } catch {} }
-    return json({ error: 'IPO sync failed. Check DART key, database migration, and function settings.', stage }, 502);
+    const detail = String((error as Error)?.message || 'unknown').replace(/https?:\/\/\S+/g, 'URL hidden').slice(0, 140);
+    return json({ error: 'IPO sync failed. Check DART key, database migration, and function settings.', stage, detail }, 502);
   }
 });

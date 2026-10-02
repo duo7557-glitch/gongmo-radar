@@ -68,8 +68,11 @@ export function createDartClient(key, fetcher = fetch) {
     const query = new URLSearchParams({ ...params, crtfc_key: key });
     // Never include URL in errors: it contains the private API key.
     let response;
-    try { response = await fetcher('https://opendart.fss.or.kr/api/' + endpoint + '?' + query, { signal: AbortSignal.timeout(25000) }); }
-    catch { throw new Error('OpenDART 네트워크 요청 실패'); }
+    try { response = await fetcher('https://opendart.fss.or.kr/api/' + endpoint + '?' + query, { signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(25000) : undefined }); }
+    catch (error) {
+      const reason = String(error?.message || error?.name || 'unknown').replace(/https?:\/\/\S+/g, 'URL hidden').slice(0, 160);
+      throw new Error('OpenDART 네트워크 요청 실패: ' + reason);
+    }
     if (!response.ok) throw new Error('OpenDART HTTP ' + response.status);
     if (binary) {
       const data = new Uint8Array(await response.arrayBuffer());
@@ -92,8 +95,8 @@ export function createDartClient(key, fetcher = fetch) {
   }
   return { list, equity: (code, range) => request('estkRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), document: no => request('document.xml', { rcept_no: no }, true) };
 }
-export async function collectOfferings({ client, unzip, now = new Date(), existing = [] }) {
-  const range = dateRange(now);
+export async function collectOfferings({ client, unzip, now = new Date(), existing = [], range: overrideRange } = {}) {
+  const range = overrideRange || dateRange(now);
   const reports = await client.list({ bgn_de: range.begin, end_de: range.end, pblntf_detail_ty: 'C001', last_reprt_at: 'N' });
   const companies = new Map();
   for (const report of reports) {
