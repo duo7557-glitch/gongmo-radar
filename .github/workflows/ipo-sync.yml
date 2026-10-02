@@ -1,6 +1,13 @@
 name: IPO sync
 
 on:
+  push:
+    paths:
+      - 'tools/ipo-score.mjs'
+      - 'tools/score-ipo.mjs'
+      - 'tools/publish-ipo.mjs'
+      - 'supabase/functions/_shared/dart.mjs'
+      - '.github/workflows/ipo-sync.yml'
   schedule:
     # UTC 03/09/15/21시 = 한국시간 12/18/00/06시
     - cron: '0 3,9,15,21 * * *'
