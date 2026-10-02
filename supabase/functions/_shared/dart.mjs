@@ -1,4 +1,7 @@
 // Pure normalization + injectable HTTP layer, shared by local runner and Edge Function.
+// Bump when parsing rules change so previously imported rows are recomputed once.
+export const PARSER_VERSION = 2;
+const OFFERING_FILING = /증권신고서.*(?:지분증권|증권예탁증권)/;
 export class DartError extends Error {
   constructor(status) { super(`OpenDART 오류 ${status}`); this.status = status; }
 }
@@ -32,10 +35,25 @@ export function ipoEvidence(text) {
   // Current-offering statement is required. A general mention of IPO/history is insufficient.
   const patterns = [
     /(?:금번|이번|본)\s*(?:주식\s*)?(?:공모|모집)[^.]{0,220}(?:코스닥|유가증권|코스피)[^.]{0,90}(?:신규\s*상장|이전\s*상장)[^.]{0,90}(?:위한|위해|목적)/,
-    /(?:금번|이번|본)\s*(?:주식\s*)?(?:공모|모집)[^.]{0,100}(?:신규\s*상장|이전\s*상장)[^.]{0,80}(?:위한|위해|목적)/
+    /(?:금번|이번|본)\s*(?:주식\s*)?(?:공모|모집)[^.]{0,100}(?:신규\s*상장|이전\s*상장)[^.]{0,80}(?:위한|위해|목적)/,
+    // "본 주식은 코스닥시장 상장을 목적으로 모집(매출)하는 것으로" (기도산업 등)
+    /(?:금번|이번|본)\s*주식은\s*(?:코스닥|유가증권|코스피)\s*시장\s*(?:신규\s*)?상장을\s*(?:목적|위한|위해)/,
+    // 스팩: "코스닥시장 상장을 위한 최초의 모집", "최초로 모집한 주권 … 90일 이내 … 상장"
+    /(?:코스닥|유가증권|코스피)\s*시장\s*상장을\s*위한\s*최초(?:의)?\s*(?:모집|공모)/,
+    /최초(?:로)?\s*모집한\s*주권[^.]{0,60}90\s*일\s*이내[^.]{0,40}상장/
   ];
   for (const pattern of patterns) { const match = String(text).match(pattern); if (match) return match[0]; }
   return null;
+}
+// [발행조건확정] 정정표의 "정정 후" 값만 확정가로 본다. 정정 전 값은 "모집(매출)가액(예정): a ~ b" 형태라 걸리지 않는다.
+export function confirmedPrice(text) {
+  const s = String(text || '');
+  const m = s.match(/모집\s*\(\s*매출\s*\)\s*가액\s*:\s*([\d,]+)\s*원\s*-\s*모집\s*\(\s*매출\s*\)\s*총액/) || s.match(/확정\s*공모\s*가액(?:인|을|은|:)?\s*([\d,]+)\s*원/);
+  return m ? m[1] : null;
+}
+export function priceBand(text) {
+  const m = String(text || '').match(/희망\s*공모\s*가액(?:인|은|:)?\s*([\d,]+)\s*원\s*[~∼～]\s*([\d,]+)\s*원/);
+  return m ? [m[1], m[2]] : null;
 }
 const groupRows = (groups, title) => groups.filter(g => String(g.title).replaceAll(' ', '') === title).flatMap(g => g.list || []);
 export function normalizeOffering(payload, report, text) {
@@ -51,10 +69,12 @@ export function normalizeOffering(payload, report, text) {
   const prices = [...new Set(stocks.map(row => row.slprc).filter(p => p && p !== '-'))];
   const brokers = [...new Set(groupRows(groups, '인수인정보').filter(row => row.rcept_no === report.rcept_no).map(row => row.actnmn).filter(n => n && n !== '-'))];
   const payment = datesFromText(detail.pymd);
+  // estkRs slprc는 희망가 밴드의 최저가라 단독으로 보여주면 공모가로 오해한다. 원문에서 밴드를 읽을 수 있으면 밴드로 표시한다.
+  const band = priceBand(text);
   return { listing: {
     source_key: 'dart-ipo:' + report.corp_code, dart_corp_code: report.corp_code, dart_receipt_no: report.rcept_no,
     name: detail.corp_name || report.corp_name, sector: '', subscription_start: date.start, subscription_end: date.end,
-    price_text: prices.length ? prices.join(' / ') + '원 (공시상 모집가액)' : '공모가 확인중', broker: brokers.join(' · '),
+    price_text: band ? `${band[0]}~${band[1]}원 (희망 공모가)` : prices.length ? prices.join(' / ') + '원 (공시상 모집가액)' : '공모가 확인중', broker: brokers.join(' · '),
     payment_date: payment?.start || null,
     source_dart_url: 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + report.rcept_no,
     status: (report.rm || '').includes('철') ? '철회' : '예정', score: null, score_status: 'pending',
@@ -93,15 +113,17 @@ export function createDartClient(key, fetcher = fetch) {
     } while (page <= total);
     return rows;
   }
-  return { list, equity: (code, range) => request('estkRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), document: no => request('document.xml', { rcept_no: no }, true) };
+  return { list, equity: (code, range) => request('estkRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), depositary: (code, range) => request('stkdpRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), document: no => request('document.xml', { rcept_no: no }, true) };
 }
 export async function collectOfferings({ client, unzip, now = new Date(), existing = [], range: overrideRange } = {}) {
   const range = overrideRange || dateRange(now);
   const todayStr = dateRange(now).end;
-  const reports = await client.list({ bgn_de: range.begin, end_de: range.end, pblntf_detail_ty: 'C001', last_reprt_at: 'N' });
+  // 외국 기업은 주식 대신 증권예탁증권(DR, 공시유형 C005)으로 상장하므로 함께 조회한다.
+  const reports = [];
+  for (const type of ['C001', 'C005']) reports.push(...await client.list({ bgn_de: range.begin, end_de: range.end, pblntf_detail_ty: type, last_reprt_at: 'N' }));
   const companies = new Map();
   for (const report of reports) {
-    if (!/증권신고서.*지분증권/.test(report.report_nm || '')) continue;
+    if (!OFFERING_FILING.test(report.report_nm || '')) continue;
     const prior = companies.get(report.corp_code);
     if (!prior || report.rcept_no > prior.rcept_no) companies.set(report.corp_code, report);
   }
@@ -110,25 +132,36 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
   const historyBegin = String(Number(range.begin.slice(0, 4)) - 1) + '0101';
   for (const candidate of companies.values()) {
     const previous = existing.find(row => row.source_key === 'dart-ipo:' + candidate.corp_code);
-    // Persisted history is retained. Already imported revisions are not recomputed.
-    if (previous && [previous.dart_receipt_no, previous.source_payload?.latest_receipt_no].includes(candidate.rcept_no) && !candidate.rm?.includes('철')) continue;
+    // Persisted history is retained. Already imported revisions are not recomputed,
+    // unless they were parsed by an older parser (e.g. before confirmed prices were read).
+    if (previous?.source_payload?.parser_version === PARSER_VERSION && [previous.dart_receipt_no, previous.source_payload?.latest_receipt_no].includes(candidate.rcept_no) && !candidate.rm?.includes('철')) continue;
     let report = candidate;
     try {
-      const payload = await client.equity(candidate.corp_code, { begin: historyBegin, end: todayStr });
+      const isDepositary = /증권예탁증권/.test(candidate.report_nm || '');
+      const payload = await (isDepositary ? client.depositary : client.equity)(candidate.corp_code, { begin: historyBegin, end: todayStr });
       const summarized = new Set(groupRows(payload.group || [], '일반사항').map(row => row.rcept_no));
       // estkRs 요약은 [발행조건확정]·투자설명서·실적보고서·철회신고서를 반영하지 않고 마지막 증권신고서(정정 포함)
       // 기준으로 응답한다. 그래서 "최신 공시"를 추측하지 않고, 요약이 가리키는 신고서를 이 회사 이력에서 찾아 맞춘다.
       let history = null;
       if (!summarized.has(candidate.rcept_no)) {
         history = await client.list({ corp_code: candidate.corp_code, bgn_de: historyBegin, end_de: todayStr, pblntf_ty: 'C' });
-        const matched = history.filter(row => summarized.has(row.rcept_no) && /증권신고서.*지분증권/.test(row.report_nm || '')).sort((a, b) => b.rcept_no.localeCompare(a.rcept_no))[0];
+        const matched = history.filter(row => summarized.has(row.rcept_no) && OFFERING_FILING.test(row.report_nm || '')).sort((a, b) => b.rcept_no.localeCompare(a.rcept_no))[0];
         if (matched) report = matched;
       }
       const text = documentText(await client.document(report.rcept_no), unzip);
       const normalized = normalizeOffering(payload, report, text);
       if (normalized.listing) {
-        const newest = (history || [candidate]).filter(row => /증권신고서.*지분증권/.test(row.report_nm || '')).reduce((a, b) => (b.rcept_no > a.rcept_no ? b : a), candidate);
+        const newest = (history || [candidate]).filter(row => OFFERING_FILING.test(row.report_nm || '')).reduce((a, b) => (b.rcept_no > a.rcept_no ? b : a), candidate);
         normalized.listing.source_payload.latest_receipt_no = newest.rcept_no;
+        normalized.listing.source_payload.parser_version = PARSER_VERSION;
+        // 확정 공모가는 estkRs에 반영되지 않으므로 [발행조건확정] 원문에서 직접 읽는다.
+        const finalTerms = history?.filter(row => /발행조건확정/.test(row.report_nm || '') && row.rcept_no > report.rcept_no).sort((a, b) => b.rcept_no.localeCompare(a.rcept_no))[0];
+        if (finalTerms) {
+          const price = confirmedPrice(documentText(await client.document(finalTerms.rcept_no), unzip));
+          normalized.listing.source_payload.final_terms_receipt_no = finalTerms.rcept_no;
+          normalized.listing.source_dart_url = 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + finalTerms.rcept_no;
+          if (price) normalized.listing.price_text = `${price}원 (확정 공모가)`;
+        }
         const withdrawal = history?.find(row => /철회/.test(row.report_nm || '') && row.rcept_no > report.rcept_no);
         if (withdrawal) Object.assign(normalized.listing, { status: '철회', is_published: false, source_dart_url: 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + withdrawal.rcept_no });
         listings.push(normalized.listing);

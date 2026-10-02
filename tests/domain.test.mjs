@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import core from '../radar-core.js';
 import performance from '../performance-core.js';
-import { datesFromText, normalizeOffering, createDartClient, ipoEvidence, collectOfferings } from '../supabase/functions/_shared/dart.mjs';
+import { datesFromText, normalizeOffering, createDartClient, ipoEvidence, collectOfferings, confirmedPrice, priceBand, PARSER_VERSION } from '../supabase/functions/_shared/dart.mjs';
 
 test('월을 걸치는 청약은 두 달에 표시하고 상태는 한국 날짜로 계산한다', () => {
   const row = { subscription_start: '2026-09-30', subscription_end: '2026-10-02' };
@@ -44,8 +44,16 @@ test('공시 목록은 100건 이후 페이지도 조회하고 잘못된 키를 
 });
 test('이미 반영한 정정 공시는 다시 만들지 않는다', async () => {
   const client = { list: async params => params.pblntf_detail_ty ? [{ ...report, report_nm: '증권신고서(지분증권)' }] : [], equity: () => { throw new Error('should not be called'); } };
-  const result = await collectOfferings({ client, unzip: () => ({}), now: new Date('2026-10-02T00:00:00Z'), existing: [{ source_key: 'dart-ipo:00001234', dart_receipt_no: report.rcept_no }] });
+  const result = await collectOfferings({ client, unzip: () => ({}), now: new Date('2026-10-02T00:00:00Z'), existing: [{ source_key: 'dart-ipo:00001234', dart_receipt_no: report.rcept_no, source_payload: { parser_version: PARSER_VERSION } }] });
   assert.equal(result.listings.length, 0); assert.equal(result.review.length, 0);
+});
+test('예전 파서로 저장된 종목은 같은 공시라도 한 번 다시 계산한다', async () => {
+  let equityCalls = 0;
+  const client = { list: async params => params.corp_code ? [] : [{ ...report, report_nm: '증권신고서(지분증권)' }], equity: async () => { equityCalls++; return payload; }, document: async () => new Uint8Array() };
+  const unzip = () => ({ 'a.xml': new TextEncoder().encode('금번 공모는 코스닥시장 신규상장을 위한 일반공모입니다.') });
+  const result = await collectOfferings({ client, unzip, now: new Date('2026-10-02T00:00:00Z'), existing: [{ source_key: 'dart-ipo:00001234', dart_receipt_no: report.rcept_no, source_payload: {} }] });
+  assert.equal(equityCalls, 1);
+  assert.equal(result.listings[0].source_payload.parser_version, PARSER_VERSION);
 });
 
 // 실제 DART 이력(클로봇·채비·마키나락스): estkRs 요약은 마지막 [기재정정]증권신고서를 가리키고
@@ -75,6 +83,32 @@ test('발행조건확정 이후에도 요약이 가리키는 정정신고서 기
   // 다음 실행에서 같은 최신 공시를 다시 만나면 재계산하지 않는다.
   const again = await collectOfferings({ client: { ...historyClient([]), equity: () => { throw new Error('should not be called'); } }, unzip: unzipText, now: new Date('2026-10-02T00:00:00Z'), existing: [result.listings[0]] });
   assert.equal(again.listings.length, 0); assert.equal(again.review.length, 0);
+});
+test('확정 공모가는 발행조건확정 정정 후 값만, 희망가는 밴드로 읽는다', () => {
+  // 실제 원문 문구(스카이랩스·덕산넵코어스)
+  assert.equal(confirmedPrice('정정 전 모집(매출)가액(예정): 12,400원 ~ 14,600원 정정 후 0% - 모집(매출)가액: 14,600원 - 모집(매출)총액: 43,800,000,000원'), '14,600');
+  assert.equal(confirmedPrice('협의한 후 1주당 확정공모가액을 10,000원으로 최종 결정하였습니다'), '10,000');
+  assert.equal(confirmedPrice('제시 희망공모가액인 13,000원 ~ 16,000원 중 최저가액인 13,000원 기준입니다'), null);
+  assert.deepEqual(priceBand('제시 희망공모가액인 13,000원 ~ 16,000원 중 최저가액인 13,000원 기준입니다'), ['13,000', '16,000']);
+});
+test('기도산업·스팩식 상장 문구도 인식하지만 유상증자는 거른다', () => {
+  assert.ok(ipoEvidence('주8) 본 주식은 코스닥시장 상장을 목적으로 모집(매출)하는 것으로 상장예비심사 승인을 받았습니다'));
+  assert.ok(ipoEvidence('또한, 코스닥시장 상장을 위한 최초의 모집 이후에는 채무증권을 발행할 수 없습니다'));
+  assert.ok(ipoEvidence('⑤ 최초로 모집한 주권에 대한 주금납입일부터 90일 이내 증권시장에 상장할 것'));
+  assert.equal(ipoEvidence('당사는 2024년 코스닥시장에 상장하였으며, 이번 모집은 시설자금 조달을 위한 주주배정 유상증자입니다.'), null);
+});
+test('외국 기업의 증권예탁증권(DR) 공모도 DR 요약으로 자동 게시한다', async () => {
+  const dr = { ...report, report_nm: '증권신고서(증권예탁증권)' };
+  const client = {
+    list: async params => params.corp_code ? [] : params.pblntf_detail_ty === 'C005' ? [dr] : [],
+    equity: () => { throw new Error('지분증권 요약을 쓰면 안 됨'); },
+    depositary: async () => payload,
+    document: async () => new Uint8Array()
+  };
+  const result = await collectOfferings({ client, unzip: unzipText, now: new Date('2026-10-02T00:00:00Z') });
+  assert.equal(result.review.length, 0);
+  assert.equal(result.listings.length, 1);
+  assert.equal(result.listings[0].source_key, 'dart-ipo:00001234');
 });
 test('요약 이후 철회신고서가 있으면 철회로 숨긴다', async () => {
   const withdrawal = { ...report, rcept_no: '20260831001297', report_nm: '철회신고서' };
