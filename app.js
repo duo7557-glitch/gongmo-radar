@@ -6,7 +6,7 @@ let db = null;
 try { if (config.supabaseUrl && publicKey && window.supabase) db = window.supabase.createClient(config.supabaseUrl, publicKey); } catch {}
 const today = koreaDate();
 let currentMonth = today.slice(0, 7), ipoData = [], demoMode = false, dataState = db ? 'loading' : 'unconfigured';
-let savedOnly = false, channel, messages = [], sending = false, lastSentAt = 0, blockedUntil = 0, reportId;
+let savedOnly = false, quickFilter = 'all', channel, messages = [], sending = false, lastSentAt = 0, blockedUntil = 0, reportId;
 const room = config.chatRoom || 'lobby';
 const readStored = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
@@ -31,7 +31,7 @@ function displayedData() {
 }
 function render() {
   const all = displayedData(), monthly = all.filter(item => inMonth(item, currentMonth));
-  const entries = selectListings(all, { month: currentMonth, search: $('#stockSearch').value, status: $('#statusFilter').value, sort: $('#sortFilter').value, savedOnly, saved });
+  const baseEntries = selectListings(all, { month: currentMonth, search: $('#stockSearch').value, status: $('#statusFilter').value, sort: $('#sortFilter').value, savedOnly, saved });
   $('#monthLabel').textContent = monthText(currentMonth); $('#heroMonth').textContent = `${Number(currentMonth.slice(5))}월`;
   $('#savedCount').textContent = saved.length; $('#demoWarning').hidden = !demoMode;
   $('#demoToggle').textContent = demoMode ? '실제 데이터 보기' : '예시 화면 보기'; $('#demoToggle').setAttribute('aria-pressed', String(demoMode));
@@ -45,7 +45,13 @@ function render() {
   const active = monthly.filter(item => ['예정', '진행중'].includes(statusOf(item))).sort((a, b) => a.subscription_start.localeCompare(b.subscription_start));
   $('#nextDate').textContent = active.length ? dateLabel(active[0].subscription_start) : '—';
   const threeDaysLater = new Date(`${today}T00:00:00Z`); threeDaysLater.setUTCDate(threeDaysLater.getUTCDate() + 3);
-  $('#closingCount').textContent = active.filter(item => item.subscription_end >= today && item.subscription_end <= threeDaysLater.toISOString().slice(0, 10)).length;
+  const closingSoon = active.filter(item => item.subscription_end >= today && item.subscription_end <= threeDaysLater.toISOString().slice(0, 10));
+  $('#closingCount').textContent = closingSoon.length;
+  const entries = quickFilter === 'active' ? baseEntries.filter(item => statusOf(item) === '진행중') : quickFilter === 'closing' ? baseEntries.filter(item => item.subscription_end >= today && item.subscription_end <= threeDaysLater.toISOString().slice(0, 10)) : baseEntries;
+  $('#calendarCta').innerHTML = active.length ? `이번 달 ${active.length}개 일정 보기 <span>→</span>` : '월별 일정 보기 <span>→</span>';
+  $('#resultCount').textContent = monthly.length ? `${entries.length}개 종목 표시 중` : '';
+  document.querySelectorAll('#quickFilter button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.quick === quickFilter)));
+  renderActionRail(monthly, active, closingSoon);
   const newest = monthly.map(item => item.updated_at).filter(Boolean).sort().at(-1);
   $('#lastUpdated').textContent = demoMode ? '가상 데이터 · 실제 청약에 사용할 수 없습니다.' : newest ? `공시 반영 ${new Date(newest).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}` : '청약일 기준으로 월별 자동 분류합니다.';
   const empty = dataState === 'loading' && !demoMode ? '공모주 일정을 불러오는 중입니다.' : monthly.length ? '검색 조건에 맞는 공모주가 없습니다.' : '이 달의 공모주가 아직 등록되지 않았습니다.';
@@ -56,6 +62,13 @@ function render() {
   renderCalendar(entries);
   const picks = [...scored].filter(item => scoreOf(item) >= 70).sort((a, b) => scoreOf(b) - scoreOf(a)).slice(0, 3);
   $('#pickGrid').innerHTML = picks.map((item, i) => `<article class="pick-card ${i === 0 ? 'featured' : ''}"><span class="tag">${demoMode ? 'SAMPLE' : i === 0 ? 'TOP SIGNAL' : 'WATCHLIST'}</span><div class="score-pill">${scoreOf(item)}</div><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.reason)}</p><div class="signals">${item.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><button class="card-detail" data-detail="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.name)} 분석 보기">↗</button></article>`).join('') || '<div class="analysis-empty"><b>근거가 모이면 분석이 시작됩니다.</b><p>청약 일정은 자동 갱신됩니다. 기관 수요·확약·유통물량 자료가 부족한 종목은 점수를 표시하지 않습니다.</p></div>';
+}
+function renderActionRail(monthly, active, closingSoon) {
+  const ongoing = monthly.filter(item => statusOf(item) === '진행중');
+  const targets = ongoing.length ? ongoing.slice(0, 3) : active.slice(0, 3);
+  const lead = ongoing.length ? `오늘 청약 중인 종목 ${ongoing.length}개` : closingSoon.length ? `3일 안에 마감하는 종목 ${closingSoon.length}개` : targets.length ? '가장 가까운 청약 일정' : '이번 달 일정 안내';
+  const content = targets.length ? targets.map(item => `<button class="agenda-item" data-detail="${escapeHtml(item.id)}"><span class="agenda-date">${escapeHtml(dateLabel(item.subscription_start))}</span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.broker || '주관사 확인중')} · ${escapeHtml(statusOf(item))}</small><span aria-hidden="true">→</span></button>`).join('') : '<div class="agenda-empty">등록된 청약 일정이 아직 없습니다. 새 공시가 반영되면 이곳에 표시됩니다.</div>';
+  $('#actionRail').innerHTML = `<div class="agenda-heading"><span>${lead}</span><small>청약일 기준 · 공시 변경 가능</small></div><div class="agenda-list">${content}</div>`;
 }
 function renderCalendar(entries) {
   const grid = $('#calendarGrid');
@@ -85,6 +98,7 @@ function changeMonth(delta) { const date = new Date(`${currentMonth}-01T00:00:00
 $('#prevMonth').addEventListener('click', () => changeMonth(-1)); $('#nextMonth').addEventListener('click', () => changeMonth(1));
 $('#todayMonth').addEventListener('click', () => { currentMonth = koreaDate().slice(0, 7); render(); });
 $('#stockSearch').addEventListener('input', render); $('#statusFilter').addEventListener('change', render); $('#sortFilter').addEventListener('change', render);
+$('#quickFilter').addEventListener('click', event => { const button = event.target.closest('[data-quick]'); if (!button) return; quickFilter = button.dataset.quick; render(); });
 $('#savedFilter').addEventListener('click', () => { savedOnly = !savedOnly; render(); }); $('#savedNav').addEventListener('click', () => { savedOnly = true; render(); });
 $('#demoToggle').addEventListener('click', () => { demoMode = !demoMode; render(); }); $('#howButton').addEventListener('click', () => document.querySelector('.method').scrollIntoView());
 $('#closeDialog').addEventListener('click', () => $('#detailDialog').close());
@@ -166,6 +180,7 @@ $('#chatForm').addEventListener('submit', async event => {
   } catch { $('#chatFeedback').textContent = '네트워크 연결을 확인하고 다시 보내 주세요.'; } finally { sending = false; $('#sendChat').disabled = false; }
 });
 $('#newMessages').addEventListener('click', () => { $('#messages').scrollTop = $('#messages').scrollHeight; $('#newMessages').hidden = true; });
+document.querySelector('.chat-prompts').addEventListener('click', event => { const button = event.target.closest('[data-prompt]'); if (!button) return; $('#chatInput').value = button.dataset.prompt; $('#chatInput').focus(); });
 $('#cancelReport').addEventListener('click', () => $('#reportDialog').close());
 $('#reportForm').addEventListener('submit', async event => {
   event.preventDefault(); if (!db || !reportId) return; const button = event.submitter; button.disabled = true;

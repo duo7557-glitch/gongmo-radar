@@ -13,6 +13,11 @@ test('desktop: right-fixed chat, real/demo separation, search/save/modal and Sep
   await page.getByRole('button', { name: '예시 화면 보기', exact: true }).click();
   await expect(page.locator('#ipoRows tr')).toHaveCount(4);
   await expect(page.locator('#demoWarning')).toBeVisible();
+  await expect(page.locator('.agenda-item')).toHaveCount(3);
+  await page.locator('#quickFilter [data-quick="active"]').click(); await expect(page.locator('#quickFilter [data-quick="active"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#quickFilter [data-quick="all"]').click();
+  await page.locator('#viewSwitch [data-view="calendar"]').click(); await expect(page.locator('#calendarView')).toBeVisible();
+  await page.locator('#viewSwitch [data-view="list"]').click();
   await page.locator('#stockSearch').fill('한국투자'); await expect(page.locator('#ipoRows tr')).toHaveCount(1);
   await expect(page.locator('#ipoRows')).toContainText('메디큐브랩');
   await page.locator('#stockSearch').fill('');
@@ -25,6 +30,7 @@ test('desktop: right-fixed chat, real/demo separation, search/save/modal and Sep
   await expect(page.locator('#performanceRows tr')).toHaveCount(6); await expect(page.locator('#performanceRows')).toContainText('5거래일 대기');
   await page.locator('#includeSpac').click(); await expect(page.locator('#performanceRows tr')).toHaveCount(9);
   await page.locator('#includeSpac').click();
+  await page.locator('[data-prompt]').first().click(); await expect(page.locator('#chatInput')).toHaveValue('이번 주 청약 일정 알려주세요.');
   await page.locator('#chatName').fill('<img>'); await page.locator('#chatInput').fill('<script>hello</script>'); await page.locator('#sendChat').click();
   await expect(page.locator('#messages')).toContainText('<script>hello</script>'); expect(await page.locator('#messages script').count()).toBe(0);
   await page.locator('#performance').scrollIntoViewIfNeeded();
