@@ -72,6 +72,23 @@ OpenDART 공시 목록 전체 페이지, 지분증권 신고서 요약, ZIP 원�
 
 공식 API: [공시 검색](https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019001), [지분증권](https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS006&apiId=2020054), [원문 다운로드](https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019003).
 
+#### DART 매칭 규칙 (실제 상장 종목과 대조해 확인한 것)
+
+- 지분증권 요약 API(estkRs)는 마지막 `증권신고서`(정정 포함)만 반영하고 `[발행조건확정]`·투자설명서·실적보고서·철회신고서는 반영하지 않는다. 그래서 "최신 공시"가 아니라 **요약이 가리키는 신고서**를 공시 이력에서 찾아 맞춘다.
+- 확정 공모가는 `[발행조건확정]` 정정표의 "정정 후 모집(매출)가액"에서 읽는다. 없으면 희망가 밴드로 표시한다(estkRs의 `slprc`는 밴드 최저가라 공모가로 쓰지 않는다).
+- 외국 기업은 증권예탁증권(DR, 공시유형 C005, 요약 API `stkdpRs`)으로 상장한다.
+- 이미 상장한 종목은 KIND 신규상장(공모) 목록의 종목코드로 공모주임을 확인한다. 상장사 유상증자 신고서는 예전 상장 당시의 "상장주선인" 표현을 쓰므로 그 문구만으로는 공모주로 보지 않는다.
+- `node tools/verify-calendar.mjs`: KIND 실제 상장 종목을 정답으로 놓고 캘린더(청약일·확정 공모가)를 대조한다.
+
+## 상장주 시세·수익률 TOP 10 (매일 자동 갱신)
+
+`tools/price-history.mjs`가 KIND에서 올해 공모 신규·이전상장 종목을, 네이버 금융에서 상장일~최신 거래일 시세를 받아 `data/price-history-YYYY.js`와 Supabase `ipo_price_history`(공개 읽기, `supabase/price-history.sql`)에 저장한다. 외국 기업은 KIND가 발행사 코드(예: `USA28`)를 주므로 네이버 종목 검색으로 코드를 찾는다. `.github/workflows/price-history.yml`이 평일 16:30·19:30(KST)에 실행하며, 사이트는 정적 파일로 먼저 그린 뒤 DB에 더 최신 시세가 있으면 TOP 10과 상장 후 성과 그래프를 다시 그린다. 수동 실행: `npm run price:history`.
+
+## 핫한 공모주·상세 체크리스트
+
+- 🔥 HOT: 자동 분석 80점 이상, 기관 수요예측 1,000:1 이상, 확정 공모가가 희망가 상단 초과 중 하나라도 해당(배지 툴팁에 근거 표시). 수요예측 결과는 `[발행조건확정]` 공시에만 실리므로 자동 점수는 그 원문을 읽는다.
+- 상세 창 핵심 체크리스트: 공모가 위치, 수요예측 경쟁률, 의무보유확약, 유통가능물량, 공모주식수·공모금액, 구주매출 비중, 상장일 가격 범위(공모가 60~400%), 비용 포함 손익분기 계산기. 공시로 확인되지 않은 값은 "확인 불가"로 둔다.
+
 ## 2026년 9월 상장 성과
 
 `data/performance-2026-09.js`는 2026-10-02까지 조회한 **고정 스냅샷**이며 시세 자동 갱신은 아직 연결하지 않았습니다. 상장일·공모가는 [KIND 신규상장기업현황](https://kind.krx.co.kr/listinvstg/listingcompany.do?method=searchListingTypeMain), 일별 OHLC는 네이버 금융을 사용했습니다. 종목별 원문 시세 링크가 화면에 있습니다. `node tools/performance-september.mjs`는 검증용 JSON을 출력합니다.
