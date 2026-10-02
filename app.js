@@ -17,6 +17,17 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&':
 const dateLabel = value => value ? value.slice(5).replace('-', '. ') : '확인중';
 const monthText = month => `${month.slice(0, 4)}년 ${Number(month.slice(5))}월`;
 const scoreLabel = item => scoreOf(item) === null ? '분석 대기' : `${scoreOf(item)}점`;
+// 🔥 HOT: 공시 숫자 기준(자동 분석 80점 이상, 기관 수요예측 1,000:1 이상, 희망가 상단 초과 확정) 중 하나라도 해당하면 표시한다.
+const hotReasons = item => {
+  const p = item.source_payload || {}, s = p.score_signals || {}, reasons = [], score = scoreOf(item);
+  const demand = s.demand_ratio?.value, lockup = s.lockup_rate?.value, top = Array.isArray(p.price_band) ? p.price_band[1] : null, confirmed = p.confirmed_price;
+  if (score !== null && score >= 80) reasons.push(`분석 점수 ${score}점`);
+  if (demand >= 1000) reasons.push(`기관 수요예측 ${demand.toLocaleString('ko-KR')}:1`);
+  if (confirmed && top && confirmed > top) reasons.push(`희망가 상단 ${top.toLocaleString('ko-KR')}원 초과 확정`);
+  if (reasons.length && lockup >= 10) reasons.push(`의무보유확약 ${lockup}%`);
+  return reasons;
+};
+const hotBadge = item => { const reasons = hotReasons(item); return reasons.length ? `<span class="hot-badge" title="${escapeHtml('핫한 공모주 · ' + reasons.join(' · '))}">🔥 HOT</span>` : ''; };
 const scoreColor = score => score >= 80 ? '#3fa265' : score >= 70 ? '#e49b28' : '#909b94';
 const sourceUrl = (value, host) => { try { const u = new URL(value); return u.protocol === 'https:' && u.hostname === host ? u.href : null; } catch { return null; } };
 const fromDbListing = row => ({ ...row, month: row.subscription_start?.slice(0, 7), dates: `${dateLabel(row.subscription_start)} — ${dateLabel(row.subscription_end)}`, price: row.price_text, tags: Array.isArray(row.tags) ? row.tags : [] });
@@ -47,7 +58,7 @@ function render() {
   const threeDaysLater = new Date(`${today}T00:00:00Z`); threeDaysLater.setUTCDate(threeDaysLater.getUTCDate() + 3);
   const closingSoon = active.filter(item => item.subscription_end >= today && item.subscription_end <= threeDaysLater.toISOString().slice(0, 10));
   $('#closingCount').textContent = closingSoon.length;
-  const entries = quickFilter === 'active' ? baseEntries.filter(item => statusOf(item) === '진행중') : quickFilter === 'closing' ? baseEntries.filter(item => item.subscription_end >= today && item.subscription_end <= threeDaysLater.toISOString().slice(0, 10)) : baseEntries;
+  const entries = quickFilter === 'active' ? baseEntries.filter(item => statusOf(item) === '진행중') : quickFilter === 'closing' ? baseEntries.filter(item => item.subscription_end >= today && item.subscription_end <= threeDaysLater.toISOString().slice(0, 10)) : quickFilter === 'hot' ? baseEntries.filter(item => hotReasons(item).length) : baseEntries;
   $('#calendarCta').innerHTML = active.length ? `이번 달 ${active.length}개 일정 보기 <span>→</span>` : '월별 일정 보기 <span>→</span>';
   $('#resultCount').textContent = monthly.length ? `${entries.length}개 종목 표시 중` : '';
   document.querySelectorAll('#quickFilter button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.quick === quickFilter)));
@@ -57,7 +68,7 @@ function render() {
   const empty = dataState === 'loading' && !demoMode ? '공모주 일정을 불러오는 중입니다.' : monthly.length ? '검색 조건에 맞는 공모주가 없습니다.' : '이 달의 공모주가 아직 등록되지 않았습니다.';
   $('#ipoRows').innerHTML = entries.length ? entries.map(item => {
     const id = escapeHtml(item.id), score = scoreOf(item), status = statusOf(item);
-    return `<tr><td><div class="stock-name"><button class="save-button ${saved.includes(String(item.id)) ? 'is-saved' : ''}" data-save="${id}" aria-label="${escapeHtml(item.name)} 관심 등록" aria-pressed="${saved.includes(String(item.id))}">${saved.includes(String(item.id)) ? '★' : '☆'}</button><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.sector || '업종 확인중')} <span class="status-badge ${status === '진행중' ? 'active' : ''}">${escapeHtml(status)}</span></small></div></div></td><td>${escapeHtml(item.dates)}</td><td>${escapeHtml(item.price || '공시 확인중')}</td><td class="broker">${escapeHtml(item.broker || '확인중')}</td><td>${score === null ? '<span class="pending-score">분석 대기</span>' : `<span class="score"><i style="--score:${score}%;--score-color:${scoreColor(score)}"></i>${score}점</span>`}</td><td><button class="view-button" data-detail="${id}">분석 보기</button></td></tr>`;
+    return `<tr><td><div class="stock-name"><button class="save-button ${saved.includes(String(item.id)) ? 'is-saved' : ''}" data-save="${id}" aria-label="${escapeHtml(item.name)} 관심 등록" aria-pressed="${saved.includes(String(item.id))}">${saved.includes(String(item.id)) ? '★' : '☆'}</button><div><b>${escapeHtml(item.name)}</b>${hotBadge(item)}<small>${escapeHtml(item.sector || '업종 확인중')} <span class="status-badge ${status === '진행중' ? 'active' : ''}">${escapeHtml(status)}</span></small></div></div></td><td>${escapeHtml(item.dates)}</td><td>${escapeHtml(item.price || '공시 확인중')}</td><td class="broker">${escapeHtml(item.broker || '확인중')}</td><td>${score === null ? '<span class="pending-score">분석 대기</span>' : `<span class="score"><i style="--score:${score}%;--score-color:${scoreColor(score)}"></i>${score}점</span>`}</td><td><button class="view-button" data-detail="${id}">분석 보기</button></td></tr>`;
   }).join('') : `<tr><td colspan="6"><div class="empty-state"><span>◎</span><b>${escapeHtml(empty)}</b><p>${monthly.length ? '검색어 또는 필터를 변경해 보세요.' : '새 공시가 등록되면 해당 월 일정에 표시됩니다.'}</p></div></td></tr>`;
   renderCalendar(entries);
   const picks = [...scored].filter(item => scoreOf(item) >= 70).sort((a, b) => scoreOf(b) - scoreOf(a)).slice(0, 3);
@@ -84,7 +95,8 @@ function renderCalendar(entries) {
     const shown = items.slice(0, 3);
     return `<div class="calendar-cell${day === today ? ' is-today' : ''}"><span class="calendar-date">${Number(day.slice(8))}</span><div class="calendar-items">${shown.map(item => {
       const score = scoreOf(item);
-      return `<button class="calendar-pill" data-detail="${escapeHtml(item.id)}" style="--pill-color:${score === null ? '#909b94' : scoreColor(score)}" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>`;
+      const hot = hotReasons(item).length > 0;
+      return `<button class="calendar-pill${hot ? ' is-hot' : ''}" data-detail="${escapeHtml(item.id)}" style="--pill-color:${score === null ? '#909b94' : scoreColor(score)}" title="${escapeHtml(item.name + (hot ? ' · 핫한 공모주: ' + hotReasons(item).join(' · ') : ''))}">${hot ? '🔥 ' : ''}${escapeHtml(item.name)}</button>`;
     }).join('')}${items.length > shown.length ? `<span class="calendar-more">+${items.length - shown.length}개 더</span>` : ''}</div></div>`;
   }).join('');
 }
@@ -109,7 +121,7 @@ document.addEventListener('click', event => {
   if (detailButton) {
     const item = displayedData().find(row => String(row.id) === detailButton.dataset.detail); if (!item) return;
     const dart = sourceUrl(item.source_dart_url, 'dart.fss.or.kr'), kind = sourceUrl(item.source_kind_url, 'kind.krx.co.kr');
-    $('#dialogContent').innerHTML = `<p class="eyebrow"><span></span> ${demoMode ? 'SAMPLE ANALYSIS' : 'IPO OVERVIEW'}</p><h2 class="detail-title">${escapeHtml(item.name)}</h2><p class="detail-sub">${escapeHtml(item.sector || '업종 확인중')} · ${escapeHtml(statusOf(item))} · ${scoreLabel(item)}</p><div class="detail-grid"><div><span>청약 기간</span><b>${escapeHtml(item.dates)}</b></div><div><span>공모가</span><b>${escapeHtml(item.price || '확인중')}</b></div><div><span>인수인 · 주관사</span><b>${escapeHtml(item.broker || '확인중')}</b></div><div><span>분석 의견</span><b>${escapeHtml(item.reason || '기관 수요예측과 유통물량 확인 후 분석됩니다.')}</b></div></div><div class="source-links">${dart ? `<a href="${escapeHtml(dart)}" target="_blank" rel="noopener noreferrer">DART 원문 ↗</a>` : ''}${kind ? `<a href="${escapeHtml(kind)}" target="_blank" rel="noopener noreferrer">KIND 원문 ↗</a>` : ''}</div><p class="detail-caution">${demoMode ? '가상 기업의 예시 데이터입니다.' : '일정과 가격은 정정 공시로 변경될 수 있습니다. 공시상 청약기일이 일반 투자자 청약일과 일치하는지 원문에서 확인해 주세요.'} 분석 점수는 공개 지표의 비교 결과입니다.</p>`;
+    $('#dialogContent').innerHTML = `<p class="eyebrow"><span></span> ${demoMode ? 'SAMPLE ANALYSIS' : 'IPO OVERVIEW'}</p><h2 class="detail-title">${escapeHtml(item.name)} ${hotBadge(item)}</h2><p class="detail-sub">${escapeHtml(item.sector || '업종 확인중')} · ${escapeHtml(statusOf(item))} · ${scoreLabel(item)}</p><div class="detail-grid"><div><span>청약 기간</span><b>${escapeHtml(item.dates)}</b></div><div><span>공모가</span><b>${escapeHtml(item.price || '확인중')}</b></div><div><span>인수인 · 주관사</span><b>${escapeHtml(item.broker || '확인중')}</b></div>${hotReasons(item).length ? `<div><span>핫한 이유</span><b>${escapeHtml(hotReasons(item).join(' · '))}</b></div>` : ''}<div><span>분석 의견</span><b>${escapeHtml(item.reason || '기관 수요예측과 유통물량 확인 후 분석됩니다.')}</b></div></div><div class="source-links">${dart ? `<a href="${escapeHtml(dart)}" target="_blank" rel="noopener noreferrer">DART 원문 ↗</a>` : ''}${kind ? `<a href="${escapeHtml(kind)}" target="_blank" rel="noopener noreferrer">KIND 원문 ↗</a>` : ''}</div><p class="detail-caution">${demoMode ? '가상 기업의 예시 데이터입니다.' : '일정과 가격은 정정 공시로 변경될 수 있습니다. 공시상 청약기일이 일반 투자자 청약일과 일치하는지 원문에서 확인해 주세요.'} 분석 점수는 공개 지표의 비교 결과입니다.</p>`;
     $('#detailDialog').showModal();
   }
   const report = event.target.closest('[data-report]');
