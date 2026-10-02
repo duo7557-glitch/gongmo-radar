@@ -29,3 +29,8 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DART_BEGIN_DATE: ${{ github.event.inputs.begin }}
           DART_END_DATE: ${{ github.event.inputs.end }}
+      - run: node tools/score-ipo.mjs
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          SUPABASE_URL: https://xwclwdxerhxrjmpexzga.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
