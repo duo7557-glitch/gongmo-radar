@@ -41,7 +41,8 @@
     document.querySelector('#includeSpac').setAttribute('aria-pressed', String(includeSpac));
     document.querySelector('#includeSpac').textContent = includeSpac ? '스팩 제외' : '스팩 포함';
     renderReturnChart(entries);
-    renderPriceChart(entries.map(item => ({ ...item, days: item.days.slice(0, 5) })));
+    // 미니 그래프는 상장일부터 최신 거래일까지 전체 종가를 그린다(전체 시세가 없으면 성과 데이터의 날짜만 사용).
+    renderPriceChart(entries.map(item => ({ ...item, days: window.PriceHistory?.daysFor(item.code) || item.days })));
   }
 
   // 공모가 대비 수익률 비교: 가로 디버징 막대, 0을 가운데 두고 양쪽으로 자랍니다.

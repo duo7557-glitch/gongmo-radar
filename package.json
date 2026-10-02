@@ -10,7 +10,8 @@
     "ipo:publish": "node tools/publish-ipo.mjs",
     "ipo:score": "node tools/score-ipo.mjs",
     "dart:scan": "node tools/scan-dart.mjs",
-    "check": "node --check app.js && node --check radar-core.js && node --check performance-core.js && node --check performance.js && node --check tools/scan-dart.mjs && node --check tools/sync-ipo.mjs && node --check tools/publish-ipo.mjs && node --check tools/score-ipo.mjs && node --check tools/ipo-score.mjs && node --check supabase/functions/_shared/dart.mjs"
+    "check": "node --check app.js && node --check radar-core.js && node --check performance-core.js && node --check performance.js && node --check ranking.js && node --check tools/price-history.mjs && node --check tools/scan-dart.mjs && node --check tools/sync-ipo.mjs && node --check tools/publish-ipo.mjs && node --check tools/score-ipo.mjs && node --check tools/ipo-score.mjs && node --check supabase/functions/_shared/dart.mjs",
+    "price:history": "node tools/price-history.mjs"
   },
   "dependencies": {
     "fflate": "0.8.2"
