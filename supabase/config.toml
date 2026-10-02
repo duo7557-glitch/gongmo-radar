@@ -1,0 +1,3 @@
+[functions.ipo-sync]
+# This endpoint verifies IPO_SYNC_SECRET itself. The browser cannot invoke it with its public key.
+verify_jwt = false

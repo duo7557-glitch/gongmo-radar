@@ -1,0 +1,23 @@
+{
+  "name": "gongmo-radar",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "node tools/serve.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "playwright test",
+    "ipo:sync": "node tools/sync-ipo.mjs",
+    "ipo:publish": "node tools/publish-ipo.mjs",
+    "dart:scan": "node tools/scan-dart.mjs",
+    "check": "node --check app.js && node --check radar-core.js && node --check performance-core.js && node --check performance.js && node --check tools/scan-dart.mjs && node --check tools/sync-ipo.mjs && node --check tools/publish-ipo.mjs && node --check supabase/functions/_shared/dart.mjs"
+  },
+  "dependencies": {
+    "fflate": "0.8.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

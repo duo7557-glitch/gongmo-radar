@@ -1,0 +1,10 @@
+.env
+config.js
+node_modules/
+test-results/
+playwright-report/
+data/ipo-import.json
+data/ipo-review-queue.json
+supabase/.secrets.env
+supabase/vault-secrets.sql
+supabase/.temp/

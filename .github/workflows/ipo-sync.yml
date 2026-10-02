@@ -1,0 +1,22 @@
+name: IPO sync
+
+on:
+  schedule:
+    # UTC 03/09/15/21시 = 한국시간 12/18/00/06시
+    - cron: '0 3,9,15,21 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: node tools/publish-ipo.mjs
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          SUPABASE_URL: https://xwclwdxerhxrjmpexzga.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
