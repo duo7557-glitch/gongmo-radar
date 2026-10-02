@@ -134,7 +134,7 @@ export function createDartClient(key, fetcher = fetch, { retryDelayMs = 3000 } =
   }
   return { list, equity: (code, range) => request('estkRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), depositary: (code, range) => request('stkdpRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), document: no => request('document.xml', { rcept_no: no }, true) };
 }
-export async function collectOfferings({ client, unzip, now = new Date(), existing = [], range: overrideRange, knownListings = null } = {}) {
+export async function collectOfferings({ client, unzip, now = new Date(), existing = [], range: overrideRange, knownListings = null, concurrency = 4 } = {}) {
   const range = overrideRange || dateRange(now);
   const todayStr = dateRange(now).end;
   // 외국 기업은 주식 대신 증권예탁증권(DR, 공시유형 C005)으로 상장하므로 함께 조회한다.
@@ -149,11 +149,11 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
   const listings = [], review = [];
   // estkRs 시작일은 최초 신고서 기준이라 이전 연도부터 넉넉히, 종료일은 백필이어도 오늘까지 본다.
   const historyBegin = String(Number(range.begin.slice(0, 4)) - 1) + '0101';
-  for (const candidate of companies.values()) {
+  async function processCandidate(candidate) {
     const previous = existing.find(row => row.source_key === 'dart-ipo:' + candidate.corp_code);
     // Persisted history is retained. Already imported revisions are not recomputed,
     // unless they were parsed by an older parser (e.g. before confirmed prices were read).
-    if (previous?.source_payload?.parser_version === PARSER_VERSION && [previous.dart_receipt_no, previous.source_payload?.latest_receipt_no].includes(candidate.rcept_no) && !candidate.rm?.includes('철')) continue;
+    if (previous?.source_payload?.parser_version === PARSER_VERSION && [previous.dart_receipt_no, previous.source_payload?.latest_receipt_no].includes(candidate.rcept_no) && !candidate.rm?.includes('철')) return;
     let report = candidate;
     try {
       const isDepositary = /증권예탁증권/.test(candidate.report_nm || '');
@@ -191,6 +191,9 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
       review.push({ company: report.corp_name, receiptNo: report.rcept_no, reason: error.message });
     }
   }
+  // 해외 서버에서는 원문 다운로드가 느리므로 여러 종목을 동시에(기본 4건) 처리한다. 인증·한도 오류는 전체를 중단한다.
+  const queue = [...companies.values()];
+  await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, async () => { while (queue.length) await processCandidate(queue.shift()); }));
   // Detect withdrawal filings for active IPOs, including reports outside C001.
   for (const previous of existing.filter(row => row.dart_corp_code && row.status !== '철회' && (!row.subscription_end || row.subscription_end >= range.begin.slice(0,4) + '-' + range.begin.slice(4,6) + '-' + range.begin.slice(6)))) {
     const latest = await client.list({ corp_code: previous.dart_corp_code, bgn_de: range.begin, end_de: todayStr, pblntf_ty: 'C' });
