@@ -28,8 +28,10 @@ npm run test:browser
 - 실시간 채팅, 실제 접속 세션 표시, 재연결, 중복 메시지 처리, 새 메시지 안내. 기존 서버 도배 차단을 유지합니다.
 - 2026년 9월 일반 공모주 6개와 스팩 3개의 상장 첫날·상장일 포함 5거래일째 성과. 공모가 배정과 시초가 매수의 수익률을 구분합니다.
 - `supabase/updates.sql` 적용 후 신고 접수가 가능합니다. 운영자는 Supabase에서 확인하며 신고 내역은 방문자에게 공개되지 않습니다.
+- 월별 캘린더를 리스트/달력 두 가지 보기로 전환할 수 있습니다(`#viewSwitch`). 달력 칸에는 해당 날짜에 청약 중인 종목이 작은 태그로 표시되고, 클릭하면 기존 상세 모달이 열립니다. 선택한 보기는 브라우저에 저장됩니다.
+- OpenDART 자동 수집은 **GitHub Actions**에서 하루 4번(한국시간 00·06·12·18시) 실행됩니다. Supabase Edge Function(`ipo-sync`)은 TLS 1.2까지만 지원하는 OpenDART 서버와 Deno 런타임의 호환 문제로 접속이 거부되어(`받은 fatal alert: HandshakeFailure`), 실제 수집은 Node.js 환경(GitHub Actions)에서 수행하고 Supabase는 데이터베이스 역할만 합니다. 관련 pg_cron 스케줄은 꺼두었습니다.
 
-## Supabase와 자동 갱신: 아직 활성화하지 않았습니다
+## Supabase와 자동 갱신
 
 현재 `config.js`의 기존 프로젝트 연결은 유지했습니다. 여기에 사용하는 키는 **Publishable key** 또는 기존 anon key이며, DART 키와 service_role 키는 넣지 않습니다.
 
@@ -45,22 +47,22 @@ npm run ipo:sync
 
 이 명령은 `data/ipo-import.json`에 수집 결과를 저장하는 로컬 검증입니다. 데이터베이스에 게시하거나 스케줄러를 켜는 명령은 아닙니다. 단순 공시 검토 목록은 `npm run dart:scan`으로 생성합니다.
 
-### 클라우드 자동 갱신 활성화
+### 클라우드 자동 갱신 활성화 (GitHub Actions)
 
-1. SQL Editor에서 `supabase/updates.sql`을 적용합니다. 기존 공모주와 채팅 데이터는 보존합니다.
-2. Edge Function Secrets에 `DART_API_KEY`와 길고 무작위인 `IPO_SYNC_SECRET`을 저장합니다. Supabase 자체의 서버용 URL·service_role은 함수에 자동 주입됩니다.
-3. Supabase CLI로 로그인하고 `ipo-sync`를 배포합니다.
+1. SQL Editor에서 `supabase/updates.sql`을 적용합니다(`claim_ipo_sync` 잠금 함수, `ipo_sync_runs` 기록 테이블 포함).
+2. GitHub 저장소 Settings → Secrets and variables → Actions에 `DART_API_KEY`와 `SUPABASE_SERVICE_ROLE_KEY`를 등록합니다. `.github/workflows/ipo-sync.yml`이 하루 4번(UTC 03/09/15/21시 = 한국시간 12/18/00/06시) `tools/publish-ipo.mjs`를 실행해 Supabase REST API로 직접 upsert합니다.
+3. 수동 실행/과거 구간 백필은 `workflow_dispatch` 입력값(`begin`, `end`, YYYYMMDD)으로 가능합니다. OpenDART 목록 조회는 한 번에 최대 3개월(약 85일)이라 더 긴 구간은 나눠서 실행해야 합니다.
 
 ```powershell
-npx supabase login
-npx supabase functions deploy ipo-sync --project-ref YOUR_PROJECT_REF
+gh workflow run ipo-sync.yml --repo <owner>/<repo>                              # 최근 85일
+gh workflow run ipo-sync.yml --repo <owner>/<repo> -f begin=20260101 -f end=20260326  # 과거 구간 백필
 ```
 
-4. Vault에 `gongmo_project_url`(프로젝트 URL), `gongmo_sync_secret`(위 IPO_SYNC_SECRET과 동일)을 저장합니다.
-5. SQL Editor에서 `supabase/schedule.sql`을 실행합니다. 한국 시간 00·06·12·18시마다 실행합니다. 청약일 기준으로 월별 분류합니다.
-6. 최초 동기화 후 함수 응답과 `ipo_sync_runs` 기록을 확인합니다. API 키 발급 전에는 실제 호출·최초 데이터 검증을 완료할 수 없습니다. 요청이 많아 함수 제한을 넘으면 수집 범위를 분할해야 합니다.
+4. 실행 기록은 저장소의 **Actions** 탭과 Supabase `ipo_sync_runs` 테이블에서 확인합니다.
 
-공식 안내: [Supabase 예약 실행](https://supabase.com/docs/guides/functions/schedule-functions), [함수 Secrets](https://supabase.com/docs/guides/functions/secrets).
+과거 구간(특히 올해 초처럼 이미 상장이 끝난 달)은 공시 요약 API의 접수번호가 최신 정정신고서와 정확히 맞아떨어지지 않는 경우가 많아, 신규 등록 없이 대부분 **검토 대기**로만 쌓일 수 있습니다. 틀린 정보를 올리지 않기 위한 의도된 동작입니다.
+
+공식 안내: [Supabase 예약 실행](https://supabase.com/docs/guides/functions/schedule-functions), [함수 Secrets](https://supabase.com/docs/guides/functions/secrets). (Edge Function `ipo-sync`는 코드가 남아 있지만 위 TLS 문제로 스케줄에서는 더 이상 호출하지 않습니다.)
 
 ### 자동 수집 범위와 분석의 한계
 
