@@ -291,7 +291,8 @@ function renderCalendar(entries) {
     const shown = events.slice(0, 4);
     const chips = shown.map(({ kind, item, estimated }) => {
       const meta = CALENDAR_KINDS.find(k => k[0] === kind);
-      return `<button class="cal-chip is-${kind}${estimated ? ' is-est' : ''}" data-detail="${escapeHtml(item.id)}" title="${escapeHtml(item.name + ' · ' + meta[1] + (estimated ? ' (예상)' : ''))}"><i>${meta[2]}</i>${escapeHtml(item.name)}</button>`;
+      const isSaved = saved.includes(String(item.id));
+      return `<div class="cal-row"><button class="cal-chip is-${kind}${estimated ? ' is-est' : ''}" data-detail="${escapeHtml(item.id)}" title="${escapeHtml(item.name + ' · ' + meta[1] + (estimated ? ' (예상)' : ''))}"><i>${meta[2]}</i>${escapeHtml(item.name)}</button><button class="cal-star${isSaved ? ' is-saved' : ''}" data-save="${escapeHtml(item.id)}" aria-pressed="${isSaved}" aria-label="${escapeHtml(item.name)} 관심 등록">★</button></div>`;
     }).join('');
     return `<div class="calendar-cell${day === today ? ' is-today' : ''}"><span class="calendar-date">${Number(day.slice(8))}</span><div class="calendar-items">${chips}${events.length > shown.length ? `<span class="calendar-more">+${events.length - shown.length}개 더</span>` : ''}</div></div>`;
   }).join('');

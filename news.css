@@ -42,3 +42,4 @@
 .calendar-kinds label{padding:2px 8px;border-radius:99px}.calendar-kinds .k-demand{background:#eef3ff}.calendar-kinds .k-subscription{background:#ffeef6}.calendar-kinds .k-refund{background:#e6f8f1}.calendar-kinds .k-list{background:#e5f7fd}
 .cal-chip.is-est{opacity:.6;border:1px dashed currentColor}
 .calendar-kinds-top{margin:0 0 12px}.calendar-kinds .k-saved{background:#f3f6f3}
+.cal-row{display:flex;align-items:center;gap:1px;min-width:0}.cal-row .cal-chip{flex:1;min-width:0}.cal-star{border:0;background:none;color:#c3ccc6;font-size:11px;line-height:1;padding:2px 2px;cursor:pointer;flex:none}.cal-star.is-saved{color:#f2b600}
