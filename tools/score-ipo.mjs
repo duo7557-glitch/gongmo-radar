@@ -20,7 +20,8 @@ const isDue = row => {
   return !Number.isFinite(last) || Date.now() - last > 20 * 60 * 60 * 1000;
 };
 try {
-  const rows = await rest(`ipo_listings?is_published=eq.true&dart_receipt_no=not.is.null&subscription_end=gte.${kstDate()}&select=*`);
+  const scoreStart = `${kstDate().slice(0, 4)}-01-01`;
+  const rows = await rest(`ipo_listings?is_published=eq.true&dart_receipt_no=not.is.null&subscription_end=gte.${scoreStart}&select=*`);
   const due = rows.filter(isDue), client = createDartClient(DART_API_KEY); let updated = 0;
   for (const row of due) {
     try {
