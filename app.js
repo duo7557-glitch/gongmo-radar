@@ -154,7 +154,18 @@ function wireBreakeven(root) {
 }
 const scoreColor = score => score >= 80 ? '#3fa265' : score >= 70 ? '#e49b28' : '#909b94';
 const sourceUrl = (value, host) => { try { const u = new URL(value); return u.protocol === 'https:' && u.hostname === host ? u.href : null; } catch { return null; } };
-const fromDbListing = row => ({ ...row, month: row.subscription_start?.slice(0, 7), dates: `${dateLabel(row.subscription_start)} — ${dateLabel(row.subscription_end)}`, price: row.price_text, tags: Array.isArray(row.tags) ? row.tags : [] });
+const normalizeStockName = value => String(value || '').replace(/주식회사|㈜|\(주\)/g, '').replace(/\s/g, '').toLowerCase();
+const stockInfoOf = item => {
+  const source = item.source_payload || {};
+  const code = item.stock_code || item.ticker || source.stock_code || source.ticker;
+  if (code && /^[A-Z0-9]{6}$/i.test(String(code))) return { code: String(code).toUpperCase(), listedAt: item.listing_date || item.listed_at || source.listing_date || null };
+  return (window.PriceHistory?.items || []).find(listing => normalizeStockName(listing.name) === normalizeStockName(item.name)) || null;
+};
+const listingDateOf = item => item.listing_date || item.listed_at || stockInfoOf(item)?.listedAt || null;
+const fromDbListing = row => {
+  const listingDate = listingDateOf(row);
+  return { ...row, month: row.subscription_start?.slice(0, 7), dates: `${dateLabel(row.subscription_start)} — ${dateLabel(row.subscription_end)} · 상장 ${listingDate ? dateLabel(listingDate) : '미정'}`, price: row.price_text, tags: Array.isArray(row.tags) ? row.tags : [] };
+};
 const demoData = [
   ['에코네트웍스', '친환경 소재', '13', '14', '18,000 — 21,000원', '미래에셋증권', 82, '유통물량과 성장성을 함께 비교하는 분석 예시입니다.', ['유통물량 확인', '성장성']],
   ['메디큐브랩', '의료 AI', '20', '21', '12,000 — 15,000원', '한국투자증권', 76, '기업의 성장성과 공모가 산정 근거를 비교하는 예시입니다.', ['성장 산업', '밸류 확인']],
@@ -196,8 +207,12 @@ function render() {
   $('#ipoRows').innerHTML = entries.length ? entries.map(item => {
     const id = escapeHtml(item.id), score = scoreOf(item), status = statusOf(item);
     const subscriptionBrokers = item.source_payload?.subscription_brokers || [];
+    const stockInfo = stockInfoOf(item);
+    const discussionLink = stockInfo?.code
+      ? `<a class="discussion-shortcut" href="https://stock.naver.com/domestic/stock/${encodeURIComponent(stockInfo.code)}/discussion" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(item.name)} 네이버 종목토론방 새 창에서 열기">토론방 ↗</a>`
+      : '<span class="discussion-pending">토론방 · 상장 후 연결</span>';
     const hasDeadline = item.subscription_end && item.subscription_end >= today && !['철회', '연기'].includes(status);
-    return `<tr data-ipo-id="${id}"><td><div class="stock-name"><button class="save-button ${saved.includes(String(item.id)) ? 'is-saved' : ''}" data-save="${id}" aria-label="${escapeHtml(item.name)} 관심 등록" aria-pressed="${saved.includes(String(item.id))}">${saved.includes(String(item.id)) ? '★' : '☆'}</button><div><button type="button" class="ipo-select-button" style="display:block;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-align:left;cursor:pointer" aria-label="${escapeHtml(item.name)} 공모가를 계산기에 입력" data-select-ipo="${id}">${escapeHtml(item.name)}</button>${hotBadge(item)}<small>${escapeHtml(item.sector || '업종 확인중')} <span class="status-badge ${status === '진행중' ? 'active' : ''}">${escapeHtml(status)}</span></small></div></div></td><td>${escapeHtml(item.dates)}</td><td>${escapeHtml(item.price || '공시 확인중')}</td><td class="broker">${subscriptionBrokers.length ? escapeHtml(subscriptionBrokers.join(' · ')) : '<span class="pending-score">청약처 공시 확인중</span>'}</td><td>${score === null ? '<span class="pending-score">분석 대기</span>' : `<span class="score"><i style="--score:${score}%;--score-color:${scoreColor(score)}"></i>${score}점</span>`}</td><td class="ipo-row-actions"><button class="view-button" data-detail="${id}">분석 보기</button><button class="view-button reminder-button" data-reminder="${id}" aria-pressed="${reminderEnabled(item)}" title="${hasDeadline ? '설정한 날짜·시간에 브라우저 알림' : '마감 전 알림을 설정할 수 없습니다'}" ${hasDeadline ? '' : 'disabled'}>${reminderEnabled(item) ? '🔔 설정됨' : '🔔 알림'}</button></td></tr>`;
+    return `<tr data-ipo-id="${id}"><td><div class="stock-name"><button class="save-button ${saved.includes(String(item.id)) ? 'is-saved' : ''}" data-save="${id}" aria-label="${escapeHtml(item.name)} 관심 등록" aria-pressed="${saved.includes(String(item.id))}">${saved.includes(String(item.id)) ? '★' : '☆'}</button><div><button type="button" class="ipo-select-button" style="display:block;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-align:left;cursor:pointer" aria-label="${escapeHtml(item.name)} 공모가를 계산기에 입력" data-select-ipo="${id}">${escapeHtml(item.name)}</button>${hotBadge(item)}<small>${escapeHtml(item.sector || '업종 확인중')} <span class="status-badge ${status === '진행중' ? 'active' : ''}">${escapeHtml(status)}</span></small>${discussionLink}</div></div></td><td>${escapeHtml(item.dates)}</td><td>${escapeHtml(item.price || '공시 확인중')}</td><td class="broker">${subscriptionBrokers.length ? escapeHtml(subscriptionBrokers.join(' · ')) : '<span class="pending-score">청약처 공시 확인중</span>'}</td><td>${score === null ? '<span class="pending-score">분석 대기</span>' : `<span class="score"><i style="--score:${score}%;--score-color:${scoreColor(score)}"></i>${score}점</span>`}</td><td class="ipo-row-actions"><button class="view-button" data-detail="${id}">분석 보기</button><button class="view-button reminder-button" data-reminder="${id}" aria-pressed="${reminderEnabled(item)}" title="${hasDeadline ? '설정한 날짜·시간에 브라우저 알림' : '마감 전 알림을 설정할 수 없습니다'}" ${hasDeadline ? '' : 'disabled'}>${reminderEnabled(item) ? '🔔 설정됨' : '🔔 알림'}</button></td></tr>`;
   }).join('') : `<tr><td colspan="6"><div class="empty-state"><span>◎</span><b>${escapeHtml(empty)}</b><p>${monthly.length ? '검색어 또는 필터를 변경해 보세요.' : '새 공시가 등록되면 해당 월 일정에 표시됩니다.'}</p></div></td></tr>`;
   document.querySelectorAll('#ipoRows [data-reminder]').forEach(button => { button.title = '전날 18시·마감일 오전 9시·오후 3시에 브라우저 알림'; });
   renderCalendar(entries);
@@ -287,6 +302,8 @@ document.addEventListener('click', event => {
     const reminderNote = $('#dialogContent .reminder-note'); if (reminderNote) reminderNote.textContent = `${reminderSlots().map(slot => `${slot.offset ? '전날' : '마감일'} ${slot.time}`).join(' · ')} 알림 · 사이트가 브라우저에서 열려 있어야 합니다.`;
     const detailRows = $('#dialogContent .detail-grid');
     if (detailRows) {
+      const periodRow = [...detailRows.children].find(row => row.querySelector('span')?.textContent === '청약 기간');
+      if (periodRow) periodRow.querySelector('span').textContent = '청약 기간 · 상장일';
       const underwriterRow = [...detailRows.children].find(row => row.querySelector('span')?.textContent === '인수인 · 주관사');
       if (underwriterRow) underwriterRow.querySelector('span').textContent = '주관사·인수단';
       const row = document.createElement('div'), label = document.createElement('span'), value = document.createElement('b');
