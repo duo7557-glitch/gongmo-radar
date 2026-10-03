@@ -7,7 +7,7 @@ try { if (config.supabaseUrl && publicKey && window.supabase) db = window.supaba
 const today = koreaDate();
 let currentMonth = today.slice(0, 7), ipoData = [], demoMode = false, dataState = db ? 'loading' : 'unconfigured';
 let savedOnly = false, quickFilter = 'all', channel, messages = [], sending = false, lastSentAt = 0, blockedUntil = 0, reportId;
-const room = config.chatRoom || 'lobby';
+let room = config.chatRoom || 'lobby';
 const readStored = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
 let saved = readStored('gongmo-radar-saved', []);
@@ -336,6 +336,19 @@ async function loadMessages(forceScroll = false) {
   messages.sort((a,b) => a.createdAt.localeCompare(b.createdAt) || Number(a.id) - Number(b.id)); messages = messages.slice(-50);
   if (oldIds !== messages.map(x => x.id).join(',') || forceScroll) renderMessages(forceScroll);
 }
+// 채팅 방 전환(라운지 / 종목 토론방). 구독을 끊고 새 방의 메시지를 다시 불러온다.
+window.gongmoChat = {
+  async switchRoom(name, label) {
+    if (!db) return;
+    room = name;
+    messages = [];
+    renderMessages(true);
+    const title = document.querySelector('.chat-header b'); if (title) title.textContent = label || '공모주 라운지';
+    if (channel) { await db.removeChannel(channel); channel = null; }
+    await connectChat();
+  },
+  get room() { return room; }
+};
 function chatStatus(text, connected = false) { $('#chatStatus').textContent = text; $('#chatDot').style.background = connected ? '#4cb46a' : '#dfa74d'; }
 const formatWait = seconds => seconds >= 60 ? `${Math.ceil(seconds / 60)}분` : `${seconds}초`;
 async function notifyBlocked() {

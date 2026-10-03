@@ -19,3 +19,5 @@
 .chat-box[data-size="large"] .message-meta,.chat-box[data-size="xlarge"] .message-meta{font-size:11px}
 .chat-box.hide-time .message-meta time{display:none}
 .message.is-flash{background:#fff7d6;transition:background .3s}
+/* 채팅 방 선택 */
+.chat-room-select{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:4px 6px;background:#fff;max-width:150px;margin-left:auto;margin-right:4px}
