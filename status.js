@@ -1,6 +1,12 @@
 (() => {
   const contactLink = document.querySelector('.footer-links a[href^="mailto:"]');
-  if (contactLink) contactLink.href = '#contact';
+  const contact = document.querySelector('#contact');
+  if (contactLink) {
+    contactLink.href = '#contact';
+    contactLink.addEventListener('click', event => { event.preventDefault(); contact?.showModal(); });
+  }
+  document.querySelector('#closeContact')?.addEventListener('click', () => contact?.close());
+  contact?.addEventListener('click', event => { if (event.target === contact) contact.close(); });
   const support = document.querySelector('#supportDialog');
   document.querySelector('#openSupport')?.addEventListener('click', () => support?.showModal());
   document.querySelector('#closeSupport')?.addEventListener('click', () => support?.close());

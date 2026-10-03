@@ -90,8 +90,12 @@ test('footer links to readable policy and guide pages', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.site-footer a[href="policy/"]')).toHaveText('이용약관·개인정보 안내');
   await expect(page.locator('.site-footer a[href="#contact"]')).toHaveText('문의·신고');
+  await page.locator('.site-footer a[href="#contact"]').click();
+  await expect(page.locator('#contact')).toBeVisible();
+  await expect(page.locator('#contact')).toContainText('광고 제휴 문의');
   await expect(page.locator('#contact')).toContainText('arcmangsk@naver.com');
-  await expect(page.locator('#contact')).toContainText('메일 앱이 자동으로 열리지 않습니다');
+  await expect(page.locator('#contact')).toContainText('메일 앱이 자동으로 열리지는 않습니다');
+  await page.locator('#closeContact').click();
   await page.locator('#openSupport').click();
   await expect(page.locator('#supportDialog')).toBeVisible();
   await expect(page.locator('#supportDialog')).toContainText('토스뱅크');
