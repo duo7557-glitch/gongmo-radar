@@ -175,3 +175,7 @@
 /* 새로고침·치킨값·예시 버튼과 알림 안내는 달력 머리글 위로 */
 #calendar>.data-toolbar{order:-8.6}
 #calendar>.reminder-tools{order:-8.5}
+
+/* 히어로가 캘린더 머리글로 옮겨져 밝은 배경이므로 요약 글자색을 진하게 */
+#calendar>#hero .hero-strip span{color:#5f7568}
+#calendar>#hero .hero-strip b{color:#173b2d}
