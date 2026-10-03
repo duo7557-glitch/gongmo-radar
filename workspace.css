@@ -80,3 +80,7 @@ dialog#detailDialog{max-height:88vh;overflow:auto}.detail-checklist{margin-top:1
 .hero-panel-note{margin:0;font-size:11px;line-height:1.6;color:#9fb7a8}.hero-panel-note a{color:var(--lime)}
 @media(max-width:960px){.hero{grid-template-columns:1fr;padding:32px 24px;gap:22px}.hero-panel{align-self:stretch}}
 @media(max-width:600px){.hero{padding:24px 18px}.hero h1{font-size:28px}.hero-stats>div b{font-size:20px}}
+
+/* 히어로 간소화 */
+.hero{padding:32px 40px;gap:28px}.hero h1{font-size:clamp(28px,3vw,40px)}.hero-text,.hero .source-note,.hero-link,.hero-panel-note,.hero-panel-head{display:none}
+.hero-panel{padding:18px 20px;gap:0;background:rgba(255,255,255,.04)}.hero-stats{border-top:0;display:flex;gap:28px}.hero-stats>div{border-bottom:0;padding:0;display:flex;flex-direction:column;gap:2px}.hero-stats>div b{text-align:left;font-size:28px}.hero-stats>div span{font-size:11px;color:#9fb7a8}
