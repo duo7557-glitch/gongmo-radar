@@ -85,3 +85,25 @@ test('calculator shows traditional ttasang profit and chat has no suggestion chi
   await expect(page.locator('#miniTtasangProfitResult')).toHaveText('+62,000원');
   await expect(page.locator('.chat-prompts')).toHaveCount(0);
 });
+
+test('footer links to readable policy and guide pages', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.site-footer a[href="/policy/"]')).toHaveText('이용약관·개인정보 안내');
+  await page.locator('#openSupport').click();
+  await expect(page.locator('#supportDialog')).toBeVisible();
+  await expect(page.locator('#supportDialog img')).toHaveAttribute('src', '/toss-support-qr.png');
+  await expect(page.locator('#supportDialog')).toContainText('후원 금액은 직접 입력');
+  await page.locator('#closeSupport').click();
+  await expect(page.locator('#webStatus')).toHaveText('응답 중');
+  await expect(page.locator('#apiStatus')).toHaveText('미연결');
+  await page.goto('/policy/');
+  await expect(page).toHaveTitle(/이용약관·개인정보 안내/);
+  await expect(page.getByRole('heading', { name: '이용약관 및 개인정보 안내' })).toBeVisible();
+  await expect(page.locator('#privacy')).toContainText('닉네임과 메시지 내용');
+  await expect(page.locator('#support')).toContainText('기부금 영수증을 발급하지 않으며');
+  await page.goto('/guide/');
+  await expect(page).toHaveTitle(/이용 가이드/);
+  await expect(page.getByRole('heading', { name: '월별 청약 캘린더' })).toBeVisible();
+  await expect(page.locator('#score')).toContainText('45%');
+  await expect(page.locator('#reminder')).toContainText('페이지가 열려 있는 동안');
+});
