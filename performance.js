@@ -139,7 +139,7 @@
     svg.addEventListener('blur', leave);
   }
 
-  const SPARK_PREVIEW = 3;
+  const SPARK_PREVIEW = 99;
   function renderPriceChart(entries) {
     const grid = document.querySelector('#priceChart');
     if (!entries.length) { grid.innerHTML = '<p class="chart-empty">선택한 달·조건에 비교할 데이터가 없습니다.</p>'; return; }
