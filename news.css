@@ -54,7 +54,8 @@
   .cal-row .cal-chip{padding:0;background:none!important;justify-content:center;width:auto;flex:none}
   .cal-row .cal-chip .cal-name{display:none}
   .cal-row .cal-chip i{width:16px;height:16px;font-size:9px}
-  .cal-star{display:none}
+  .cal-row{align-items:center;justify-content:center}
+  .cal-star{font-size:10px;padding:0;line-height:1;min-width:14px;min-height:14px}
   .calendar-more{font-size:9px}
   .calendar-kinds{gap:6px 10px;font-size:11px}
   .calendar-kinds label{padding:2px 6px}
