@@ -196,6 +196,9 @@ function render() {
   const threeDaysLater = new Date(`${today}T00:00:00Z`); threeDaysLater.setUTCDate(threeDaysLater.getUTCDate() + 3);
   const closingSoon = active.filter(item => item.subscription_end >= today && item.subscription_end <= threeDaysLater.toISOString().slice(0, 10));
   $('#closingCount').textContent = closingSoon.length;
+  const todayOpen = active.filter(item => item.subscription_start <= today && item.subscription_end >= today);
+  $('#todayCount').textContent = todayOpen.length;
+  $('#todayNames').textContent = todayOpen.map(item => item.name).join(' · ');
   const entries = quickFilter === 'active' ? baseEntries.filter(item => statusOf(item) === '진행중') : quickFilter === 'closing' ? baseEntries.filter(item => item.subscription_end >= today && item.subscription_end <= threeDaysLater.toISOString().slice(0, 10)) : quickFilter === 'hot' ? baseEntries.filter(item => hotReasons(item).length) : baseEntries;
   $('#calendarCta').innerHTML = active.length ? `이번 달 ${active.length}개 일정 보기 <span>→</span>` : '월별 일정 보기 <span>→</span>';
   $('#resultCount').textContent = monthly.length ? `${entries.length}개 종목 표시 중` : '';

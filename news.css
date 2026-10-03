@@ -137,3 +137,6 @@
   .split-right svg{max-width:100%;height:auto}
   .split-right .rank-card,.split-right .chart-card{min-width:0}
 }
+
+#hero .hero-today small{font-size:11px;color:#9cc4ab;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hero .hero-today{display:flex;align-items:baseline;gap:6px;min-width:0}
