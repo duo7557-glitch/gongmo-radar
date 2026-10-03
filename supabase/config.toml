@@ -1,3 +1,7 @@
 [functions.ipo-sync]
 # This endpoint verifies IPO_SYNC_SECRET itself. The browser cannot invoke it with its public key.
 verify_jwt = false
+
+[functions.intraday]
+# Public, read-only minute quotes for the listing-day live chart (no secrets).
+verify_jwt = false

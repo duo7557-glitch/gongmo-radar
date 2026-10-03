@@ -5,7 +5,7 @@
   let byCode = new Map();
   const toDays = item => item.days.map(([date, open, high, low, close]) => ({ date, open, high, low, close }));
   // 상장 후 성과 그래프가 첫 5거래일이 아니라 상장일~최신 거래일 전체를 그리도록 제공한다.
-  window.PriceHistory = { get asOf() { return data?.asOf; }, daysFor: code => (byCode.has(code) ? toDays(byCode.get(code)) : null) };
+  window.PriceHistory = { get asOf() { return data?.asOf; }, get items() { return data?.items || []; }, daysFor: code => (byCode.has(code) ? toDays(byCode.get(code)) : null) };
   const root = document.querySelector('#ranking');
 
   const POSITIVE = '#d25c4d', NEGATIVE = '#477fc1';

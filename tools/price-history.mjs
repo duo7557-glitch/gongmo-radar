@@ -107,4 +107,21 @@ if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
   });
   if (!response.ok) throw new Error(`Supabase 저장 실패 ${response.status}: ${(await response.text()).slice(0, 200)}`);
   console.log(`Supabase ipo_price_history에 ${rows.length}종목 저장`);
+
+  // 상장일 분봉 보관: 네이버는 분봉을 약 1~2주만 보관하므로, 최근 12일 안에 상장했고 아직 저장 안 된 종목은 지금 받아 둔다.
+  const auth = { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' };
+  const stored = new Set((await (await fetch(`${SUPABASE_URL}/rest/v1/ipo_price_history?select=code&listing_day_bars=not.is.null`, { headers: auth })).json()).map(row => row.code));
+  const recentFrom = new Date(Date.now() + 9 * 3600 * 1000 - 12 * 86400 * 1000).toISOString().slice(0, 10);
+  let archived = 0;
+  for (const item of items.filter(item => item.listedAt >= recentFrom && !stored.has(item.code))) {
+    try {
+      const day = item.listedAt.replaceAll('-', '');
+      const minute = await (await fetchRetry(`https://api.stock.naver.com/chart/domestic/item/${item.code}/minute?startDateTime=${day}0900&endDateTime=${day}1530`)).json();
+      const bars = (Array.isArray(minute) ? minute : []).filter(row => row.localDateTime.startsWith(day) && row.localDateTime.slice(8, 12) <= '1530').map(row => [row.localDateTime.slice(8, 12), row.openPrice, row.highPrice, row.lowPrice, row.currentPrice, row.accumulatedTradingVolume]);
+      if (bars.length < 300) continue; // 장중이거나 데이터가 불완전하면 다음 실행 때 다시 받는다
+      const saved = await fetch(`${SUPABASE_URL}/rest/v1/ipo_price_history?code=eq.${item.code}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ listing_day_bars: bars }) });
+      if (saved.ok) archived++;
+    } catch { /* 다음 실행 때 다시 시도 */ }
+  }
+  console.log(`상장일 분봉 보관 ${archived}종목`);
 }

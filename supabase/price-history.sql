@@ -15,3 +15,5 @@ create policy "public can read price history" on public.ipo_price_history for se
 revoke all on public.ipo_price_history from anon, authenticated;
 grant select on public.ipo_price_history to anon, authenticated;
 grant all on public.ipo_price_history to service_role;
+-- 상장일 분봉 보관(네이버는 분봉을 약 1~2주만 보관하므로 시세 갱신 작업이 상장 직후 저장한다)
+alter table public.ipo_price_history add column if not exists listing_day_bars jsonb;
