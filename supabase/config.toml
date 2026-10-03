@@ -5,3 +5,7 @@ verify_jwt = false
 [functions.intraday]
 # Public, read-only minute quotes for the listing-day live chart (no secrets).
 verify_jwt = false
+
+[functions.news]
+# Public news list (title, source, time, short summary, link). No secrets.
+verify_jwt = false
