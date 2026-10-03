@@ -21,20 +21,39 @@
   anchor.insertAdjacentElement('afterend', section);
 
   const list = section.querySelector('#newsList');
+  const pager = document.createElement('div');
+  pager.className = 'news-pager';
+  list.after(pager);
   const status = section.querySelector('#newsStatus');
   const fmt = iso => iso ? new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
   const el = (tag, attrs = {}, text) => { const node = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, v)); if (text !== undefined) node.textContent = text; return node; };
 
+  const PAGE = 18;
+  let allItems = [], page = 0;
   function render(items) {
+    allItems = items;
+    page = 0;
+    draw();
+  }
+  function draw() {
     list.innerHTML = '';
-    if (!items.length) { list.append(el('li', { class: 'news-empty' }, '최근 공모주 뉴스가 없습니다.')); return; }
-    for (const item of items) {
+    if (!allItems.length) { list.append(el('li', { class: 'news-empty' }, '최근 공모주 뉴스가 없습니다.')); return; }
+    const pages = Math.ceil(allItems.length / PAGE);
+    for (const item of allItems.slice(page * PAGE, (page + 1) * PAGE)) {
       const li = el('li', { class: 'news-item' });
       const link = el('a', { class: 'news-title', href: item.link, target: '_blank', rel: 'noopener noreferrer' }, item.title);
       const meta = el('p', { class: 'news-meta' }, [item.source, fmt(item.published)].filter(Boolean).join(' · '));
       li.append(link, meta);
       if (item.summary) li.append(el('p', { class: 'news-summary' }, item.summary));
       list.append(li);
+    }
+    pager.innerHTML = '';
+    if (pages > 1) {
+      const prev = el('button', { type: 'button', class: 'view-button', 'aria-label': '이전 뉴스', ...(page === 0 ? { disabled: '' } : {}) }, '‹ 이전');
+      const next = el('button', { type: 'button', class: 'view-button', 'aria-label': '다음 뉴스', ...(page >= pages - 1 ? { disabled: '' } : {}) }, '다음 ›');
+      prev.addEventListener('click', () => { page--; draw(); });
+      next.addEventListener('click', () => { page++; draw(); });
+      pager.append(prev, el('span', { class: 'news-status' }, `${page + 1} / ${pages}`), next);
     }
   }
 
