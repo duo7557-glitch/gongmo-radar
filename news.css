@@ -105,9 +105,9 @@
 #hero .hero-stats span{font-size:11px}
 #hero .hero-stats b{font-size:14px}
 #small-lot:not(.is-open){display:none}
-.chicken-calc.is-open{display:block;position:fixed;right:24px;bottom:24px;width:340px;max-height:80vh;overflow:auto;z-index:70;background:#fff;border:1px solid #cfe3d3;border-radius:12px;box-shadow:0 18px 40px #0f2a1f33;padding:16px}
+.chicken-calc.is-open{display:block;position:fixed;right:calc(var(--sidebar-width) + 16px);bottom:24px;cursor:move;width:340px;max-height:80vh;overflow:auto;z-index:70;background:#fff;border:1px solid #cfe3d3;border-radius:12px;box-shadow:0 18px 40px #0f2a1f33;padding:16px}
 .chicken-calc #chickenClose{position:absolute;top:10px;right:10px}
-@media(max-width:600px){.chicken-calc.is-open{left:12px;right:12px;width:auto;bottom:12px}}
+@media(max-width:600px){.chicken-calc.is-open{left:12px;right:12px;width:auto;bottom:12px;cursor:auto}}
 
 /* 히어로 한 줄은 캘린더 맨 위 머리글로 */
 #calendar>#hero{margin:-4px -4px 10px;background:none;border-radius:0;border-bottom:1px solid #dfe8df}

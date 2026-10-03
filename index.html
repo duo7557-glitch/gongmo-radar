@@ -101,6 +101,10 @@
     const chicken = document.querySelector('#small-lot');
     document.querySelector('#chickenOpen').addEventListener('click', () => chicken.classList.add('is-open'));
     document.querySelector('#chickenClose').addEventListener('click', () => chicken.classList.remove('is-open'));
+    let drag = null;
+    chicken.addEventListener('pointerdown', event => { if (event.button !== 0 || event.target.closest('button, input, select, a')) return; const r = chicken.getBoundingClientRect(); drag = { dx: event.clientX - r.left, dy: event.clientY - r.top }; });
+    window.addEventListener('pointermove', event => { if (!drag) return; chicken.style.left = Math.max(0, event.clientX - drag.dx) + 'px'; chicken.style.top = Math.max(0, event.clientY - drag.dy) + 'px'; chicken.style.right = 'auto'; chicken.style.bottom = 'auto'; });
+    window.addEventListener('pointerup', () => { drag = null; });
   })();
   </script>
   <script>
