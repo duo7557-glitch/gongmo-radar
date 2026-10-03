@@ -4,7 +4,8 @@
   const key = config.supabasePublishableKey || config.supabaseAnonKey;
   if (!window.supabase || !config.supabaseUrl || !key) return;
   const db = window.supabase.createClient(config.supabaseUrl, key, { auth: { persistSession: false } });
-  const anchor = document.querySelector('#live') || document.querySelector('#performance');
+  // 상장 성과 섹션 바로 아래(본문 전체 폭)에 넣는다. 2열 그리드 안에 들어가지 않도록 같은 레벨에 둔다.
+  const anchor = document.querySelector('#performance');
   if (!anchor) return;
 
   // 섹션과 메뉴를 만든다(index.html을 건드리지 않도록 스크립트에서 삽입)
@@ -16,7 +17,7 @@
       <div class="board-controls"><select id="boardStock" aria-label="종목 선택"></select><button type="button" class="view-button" id="boardWrite">글쓰기</button></div></div>
     <div id="boardBody" class="board-body"></div>
     <p class="chart-caption">토론방은 이용자가 쓴 글입니다. 투자 판단의 근거로 삼기 전에 공시 원문을 확인하세요. 허위 정보나 매수·매도 권유 글은 운영자가 숨길 수 있습니다.</p>`;
-  anchor.parentNode.insertBefore(section, anchor);
+  anchor.insertAdjacentElement('afterend', section);
   const nav = document.querySelector('.topbar nav');
   if (nav) { const link = document.createElement('a'); link.href = '#board'; link.textContent = '종목토론'; nav.insertBefore(link, nav.children[2] || null); }
 
