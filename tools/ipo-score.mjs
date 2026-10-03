@@ -1,4 +1,4 @@
-const MODEL_VERSION = 'public-signals-v1';
+const MODEL_VERSION = 'public-signals-v2';
 
 const cleanText = value => String(value || '')
   .replace(/&nbsp;|&#160;/gi, ' ')
@@ -28,6 +28,27 @@ export function extractIpoSignals(document) {
   };
 }
 
+export function extractIssuedLockup(document) {
+  const text = cleanText(document);
+  const heading = '기관투자자 의무보유확약기간별 배정현황';
+  const start = text.indexOf(heading);
+  if (start < 0) return null;
+  const tail = text.slice(start);
+  const end = tail.search(/Ⅲ\.|III\./);
+  const section = end < 0 ? tail.slice(0, 5000) : tail.slice(0, end);
+  const rows = [...section.matchAll(/(\d+\s*(?:개월|일)\s*확약)([\s\S]*?)(?=\d+\s*(?:개월|일)\s*확약|미확약)/g)];
+  const lockedShares = rows.reduce((sum, row) => {
+    const values = [...row[2].matchAll(/(?:^|\s)([\d,]+(?:\.\d+)?)(?=\s|$)/g)].map(match => toNumber(match[1]));
+    return sum + (values.length >= 2 ? values.at(-2) : 0);
+  }, 0);
+  const totalRow = section.match(/(?:^|\s)계\s+([\s\S]*)$/);
+  const totals = totalRow ? [...totalRow[1].matchAll(/(?:^|\s)([\d,]+(?:\.\d+)?)(?=\s|$)/g)].map(match => toNumber(match[1])) : [];
+  const institutionalShares = totals.at(-2);
+  if (!lockedShares || !institutionalShares || lockedShares > institutionalShares) return null;
+  const value = Math.round(lockedShares / institutionalShares * 1000) / 10;
+  return { value, excerpt: section.slice(0, 500), source: 'issued' };
+}
+
 const demandPoint = value => value >= 1000 ? 100 : value >= 500 ? 85 : value >= 200 ? 68 : value >= 100 ? 52 : 35;
 const lockupPoint = value => value >= 20 ? 100 : value >= 10 ? 80 : value >= 5 ? 60 : value >= 1 ? 40 : 20;
 const floatPoint = value => value <= 20 ? 100 : value <= 30 ? 80 : value <= 40 ? 60 : value <= 50 ? 40 : 20;
@@ -36,18 +57,20 @@ export function scoreIpoSignals(signals) {
   const rules = [['demand_ratio', 45, demandPoint], ['lockup_rate', 30, lockupPoint], ['float_rate', 25, floatPoint]];
   const available = rules.filter(([key]) => signals[key]);
   const coverage = available.reduce((sum, [, weight]) => sum + weight, 0);
-  if (coverage < 70) return { score: null, score_status: 'pending', coverage };
+  if (coverage < 55) return { score: null, score_status: 'pending', coverage };
   return { score: Math.round(available.reduce((sum, [key, weight, points]) => sum + weight * points(signals[key].value), 0) / coverage), score_status: 'auto', coverage };
 }
 
-const signalText = (key, signal) => key === 'demand_ratio' ? `수요예측 ${signal.value.toLocaleString('ko-KR')}:1` : key === 'lockup_rate' ? `의무보유확약 ${signal.value}%` : `유통가능물량 ${signal.value}%`;
+const signalText = (key, signal) => key === 'demand_ratio' ? `수요예측 ${signal.value.toLocaleString('ko-KR')}:1` : key === 'lockup_rate' ? `의무보유확약 ${signal.value}%${signal.source === 'issued' ? ' (실제 배정)' : ''}` : `유통가능물량 ${signal.value}%`;
 
-export function applyAutomaticScore(listing, document, now = new Date()) {
+export function applyAutomaticScore(listing, document, now = new Date(), resultDocument = '') {
   const signals = extractIpoSignals(document);
+  const issuedLockup = resultDocument && extractIssuedLockup(resultDocument);
+  if (issuedLockup) signals.lockup_rate = issuedLockup;
   const result = scoreIpoSignals(signals);
   const source_payload = {
     ...(listing.source_payload || {}), score_model: MODEL_VERSION, score_checked_at: now.toISOString(),
-    score_signals: Object.fromEntries(Object.entries(signals).map(([key, signal]) => [key, signal ? { value: signal.value, excerpt: signal.excerpt } : null]))
+    score_signals: Object.fromEntries(Object.entries(signals).map(([key, signal]) => [key, signal ? { value: signal.value, excerpt: signal.excerpt, ...(signal.source ? { source: signal.source } : {}) } : null]))
   };
   const entries = Object.entries(signals).filter(([, signal]) => signal);
   if (result.score_status !== 'auto') return {

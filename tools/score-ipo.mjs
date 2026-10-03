@@ -15,7 +15,8 @@ async function rest(path, options = {}) {
 const kstDate = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
 const isDue = row => {
   const payload = row.source_payload || {};
-  if (row.score_status === 'auto' && payload.score_model === MODEL_VERSION) return false;
+  if (payload.score_model !== MODEL_VERSION) return true;
+  if (row.score_status === 'auto') return false;
   const last = Date.parse(payload.score_checked_at || '');
   return !Number.isFinite(last) || Date.now() - last > 20 * 60 * 60 * 1000;
 };
@@ -25,9 +26,17 @@ try {
   const due = rows.filter(isDue), client = createDartClient(DART_API_KEY); let updated = 0;
   for (const row of due) {
     try {
-      // 수요예측 경쟁률·확약 비율은 [발행조건확정] 공시에만 실리므로 있으면 그 원문을 읽는다.
+      // Use the final prospectus for pre-IPO signals. After subscription, the issuance report
+      // publishes actual institutional lockup allocations; include it for historical listings.
       const document = documentText(await client.document(row.source_payload?.final_terms_receipt_no || row.dart_receipt_no), unzipSync);
-      const scored = applyAutomaticScore(row, document);
+      let resultDocument = '';
+      if (row.subscription_end < kstDate() && row.dart_corp_code && /^\d{14}$/.test(row.dart_receipt_no || '')) {
+        const begin = row.dart_receipt_no.slice(0, 8);
+        const reports = await client.list({ corp_code: row.dart_corp_code, bgn_de: begin, end_de: kstDate().replaceAll('-', ''), pblntf_ty: 'C' });
+        const issuance = reports.find(report => /증권발행실적보고서/.test(report.report_nm || ''));
+        if (issuance) resultDocument = documentText(await client.document(issuance.rcept_no), unzipSync);
+      }
+      const scored = applyAutomaticScore(row, document, new Date(), resultDocument);
       await rest(`ipo_listings?id=eq.${row.id}`, { method: 'PATCH', body: JSON.stringify({ ...scored, updated_at: new Date().toISOString() }) });
       updated++;
     } catch (error) {
