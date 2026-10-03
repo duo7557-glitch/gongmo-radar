@@ -3,6 +3,13 @@
   document.querySelector('#openSupport')?.addEventListener('click', () => support?.showModal());
   document.querySelector('#closeSupport')?.addEventListener('click', () => support?.close());
   support?.addEventListener('click', event => { if (event.target === support) support.close(); });
+  document.querySelector('#copySupportAccount')?.addEventListener('click', async () => {
+    const account = document.querySelector('#supportAccount')?.textContent?.trim();
+    const feedback = document.querySelector('#supportFeedback');
+    if (!account || !feedback) return;
+    try { await navigator.clipboard.writeText(account); feedback.textContent = '토스뱅크 계좌번호를 복사했습니다.'; }
+    catch { feedback.textContent = '계좌번호 복사에 실패했어요. 계좌번호를 직접 선택해 주세요.'; }
+  });
   const web = document.querySelector('#webStatus');
   const webLed = document.querySelector('#webStatusLed');
   const api = document.querySelector('#apiStatus');
