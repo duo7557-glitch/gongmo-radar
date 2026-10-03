@@ -113,7 +113,7 @@
     }).join('');
     const ticks = Array.from({ length: 5 }, (_, i) => min + (max - min) * i / 4);
     const hours = ['0900', '1000', '1100', '1200', '1300', '1400', '1500', '1530'];
-    $('#liveChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="live-svg" role="img" aria-label="${escape(selected.name)} 분 단위 주가, 현재 ${won(last)}">` +
+    $('#liveChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="live-svg" role="img" aria-label="${escape(selected.name)} 분 단위 주가, 현재 ${won(last)}">` +
       ticks.map(v => `<line x1="${padL}" x2="${W - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="live-grid"></line><text x="${padL - 8}" y="${(y(v) + 4).toFixed(1)}" class="live-axis" text-anchor="end">${Math.round(v).toLocaleString('ko-KR')}</text>`).join('') +
       hours.map(t => `<text x="${x(t).toFixed(1)}" y="${H - 6}" class="live-axis" text-anchor="middle">${t.slice(0, 2)}:${t.slice(2)}</text>`).join('') +
       (offer ? `<line x1="${padL}" x2="${W - padR}" y1="${y(offer).toFixed(1)}" y2="${y(offer).toFixed(1)}" class="live-offer"></line><text x="${W - padR - 4}" y="${(y(offer) - 6).toFixed(1)}" class="live-axis live-offer-label" text-anchor="end">공모가 ${won(offer)}</text>` : '') +
