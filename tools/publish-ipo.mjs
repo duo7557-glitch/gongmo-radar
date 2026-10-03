@@ -60,6 +60,6 @@ try {
 } catch (error) {
   if (runId) { try { await rest('ipo_sync_runs?id=eq.' + runId, { method: 'PATCH', body: JSON.stringify({ status: 'failed', finished_at: new Date().toISOString() }) }); } catch {} }
   // DART_API_KEY 등 민감정보가 섞여 있을 수 있는 원문 에러는 출력하지 않습니다.
-  console.error('자동 갱신 실패. DART 키, DB 마이그레이션, 환경변수를 확인하세요.');
+  console.error('자동 갱신 실패. DART 키, DB 마이그레이션, 환경변수를 확인하세요.', String(error?.message || '').slice(0, 300));
   process.exitCode = 1;
 }
