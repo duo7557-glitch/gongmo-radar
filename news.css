@@ -71,3 +71,14 @@
 .news-summary{font-size:11px;line-height:1.45;-webkit-line-clamp:2}
 .news-meta{font-size:9px}
 .news .chart-caption{font-size:9px;margin:6px 0 0}
+
+/* 데스크톱: 왼쪽 절반은 캘린더, 오른쪽 절반은 상장 성과·종목토론·뉴스·수익률 TOP10. 채팅은 항상 오른쪽 끝 */
+@media(min-width:1001px){
+  main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:22px;align-items:start}
+  main>*{grid-column:1/-1;min-width:0}
+  main>#calendar{grid-column:1}
+  main>#calendar .week-live-grid{grid-template-columns:minmax(0,1fr)}
+  main>.split-right{grid-column:2;display:flex;flex-direction:column;gap:22px;min-width:0}
+  main>.split-right>section{margin:0}
+  main>#community{grid-column:auto}
+}
