@@ -104,7 +104,7 @@ function render() {
   const empty = dataState === 'loading' && !demoMode ? '공모주 일정을 불러오는 중입니다.' : monthly.length ? '검색 조건에 맞는 공모주가 없습니다.' : '이 달의 공모주가 아직 등록되지 않았습니다.';
   $('#ipoRows').innerHTML = entries.length ? entries.map(item => {
     const id = escapeHtml(item.id), score = scoreOf(item), status = statusOf(item);
-    return `<tr><td><div class="stock-name"><button class="save-button ${saved.includes(String(item.id)) ? 'is-saved' : ''}" data-save="${id}" aria-label="${escapeHtml(item.name)} 관심 등록" aria-pressed="${saved.includes(String(item.id))}">${saved.includes(String(item.id)) ? '★' : '☆'}</button><div><b>${escapeHtml(item.name)}</b>${hotBadge(item)}<small>${escapeHtml(item.sector || '업종 확인중')} <span class="status-badge ${status === '진행중' ? 'active' : ''}">${escapeHtml(status)}</span></small></div></div></td><td>${escapeHtml(item.dates)}</td><td>${escapeHtml(item.price || '공시 확인중')}</td><td class="broker">${escapeHtml(item.broker || '확인중')}</td><td>${score === null ? '<span class="pending-score">분석 대기</span>' : `<span class="score"><i style="--score:${score}%;--score-color:${scoreColor(score)}"></i>${score}점</span>`}</td><td><button class="view-button" data-detail="${id}">분석 보기</button></td></tr>`;
+    return `<tr data-ipo-id="${id}"><td><div class="stock-name"><button class="save-button ${saved.includes(String(item.id)) ? 'is-saved' : ''}" data-save="${id}" aria-label="${escapeHtml(item.name)} 관심 등록" aria-pressed="${saved.includes(String(item.id))}">${saved.includes(String(item.id)) ? '★' : '☆'}</button><div><button type="button" class="ipo-select-button" style="display:block;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-align:left;cursor:pointer" aria-label="${escapeHtml(item.name)} 공모가를 계산기에 입력" data-select-ipo="${id}">${escapeHtml(item.name)}</button>${hotBadge(item)}<small>${escapeHtml(item.sector || '업종 확인중')} <span class="status-badge ${status === '진행중' ? 'active' : ''}">${escapeHtml(status)}</span></small></div></div></td><td>${escapeHtml(item.dates)}</td><td>${escapeHtml(item.price || '공시 확인중')}</td><td class="broker">${escapeHtml(item.broker || '확인중')}</td><td>${score === null ? '<span class="pending-score">분석 대기</span>' : `<span class="score"><i style="--score:${score}%;--score-color:${scoreColor(score)}"></i>${score}점</span>`}</td><td><button class="view-button" data-detail="${id}">분석 보기</button></td></tr>`;
   }).join('') : `<tr><td colspan="6"><div class="empty-state"><span>◎</span><b>${escapeHtml(empty)}</b><p>${monthly.length ? '검색어 또는 필터를 변경해 보세요.' : '새 공시가 등록되면 해당 월 일정에 표시됩니다.'}</p></div></td></tr>`;
   renderCalendar(entries);
   const picks = [...scored].filter(item => scoreOf(item) >= 70).sort((a, b) => scoreOf(b) - scoreOf(a)).slice(0, 3);
@@ -152,11 +152,17 @@ $('#savedFilter').addEventListener('click', () => { savedOnly = !savedOnly; rend
 $('#demoToggle').addEventListener('click', () => { demoMode = !demoMode; render(); }); $('#howButton').addEventListener('click', () => document.querySelector('.method').scrollIntoView());
 $('#closeDialog').addEventListener('click', () => $('#detailDialog').close());
 document.addEventListener('click', event => {
+  const ipoRow = event.target.closest('#ipoRows tr[data-ipo-id]');
+  if (ipoRow && !event.target.closest('[data-save]')) {
+    const selected = displayedData().find(row => String(row.id) === ipoRow.dataset.ipoId);
+    if (selected) selectIpoForCalculator(selected);
+  }
   const saveButton = event.target.closest('[data-save]');
   if (saveButton) { const id = saveButton.dataset.save; saved = saved.includes(id) ? saved.filter(x => x !== id) : [...saved, id]; store('gongmo-radar-saved', saved); render(); }
   const detailButton = event.target.closest('[data-detail]');
   if (detailButton) {
     const item = displayedData().find(row => String(row.id) === detailButton.dataset.detail); if (!item) return;
+    selectIpoForCalculator(item);
     const dart = sourceUrl(item.source_dart_url, 'dart.fss.or.kr'), kind = sourceUrl(item.source_kind_url, 'kind.krx.co.kr');
     $('#dialogContent').innerHTML = `<p class="eyebrow"><span></span> ${demoMode ? 'SAMPLE ANALYSIS' : 'IPO OVERVIEW'}</p><h2 class="detail-title">${escapeHtml(item.name)} ${hotBadge(item)}</h2><p class="detail-sub">${escapeHtml(item.sector || '업종 확인중')} · ${escapeHtml(statusOf(item))} · ${scoreLabel(item)}</p><div class="detail-grid"><div><span>청약 기간</span><b>${escapeHtml(item.dates)}</b></div><div><span>공모가</span><b>${escapeHtml(item.price || '확인중')}</b></div><div><span>인수인 · 주관사</span><b>${escapeHtml(item.broker || '확인중')}</b></div>${hotReasons(item).length ? `<div><span>핫한 이유</span><b>${escapeHtml(hotReasons(item).join(' · '))}</b></div>` : ''}<div><span>분석 의견</span><b>${escapeHtml(item.reason || '기관 수요예측과 유통물량 확인 후 분석됩니다.')}</b></div></div>${demoMode ? '' : checklistRows(item)}<div class="source-links">${dart ? `<a href="${escapeHtml(dart)}" target="_blank" rel="noopener noreferrer">DART 원문 ↗</a>` : ''}${kind ? `<a href="${escapeHtml(kind)}" target="_blank" rel="noopener noreferrer">KIND 원문 ↗</a>` : ''}</div><p class="detail-caution">${demoMode ? '가상 기업의 예시 데이터입니다.' : '일정과 가격은 정정 공시로 변경될 수 있습니다. 공시상 청약기일이 일반 투자자 청약일과 일치하는지 원문에서 확인해 주세요.'} 분석 점수는 공개 지표의 비교 결과입니다.</p>`;
     wireBreakeven($('#dialogContent'));
@@ -258,6 +264,11 @@ window.addEventListener('online', () => { loadListings(); if (db) loadMessages()
 
 function updateSmallLotEstimate() {
   const read = id => Math.max(0, Number(document.getElementById(id).value) || 0);
+  if (read('miniIpoPrice') <= 0) {
+    $('#miniDepositResult').textContent = '가격 입력 필요'; $('#miniProfitResult').textContent = '계산 대기';
+    $('#miniCalcNote').textContent = '공모가가 확인되면 공시 가격을 입력하거나, 희망 공모가 범위를 참고해 직접 입력해 주세요.';
+    return;
+  }
   const price = read('miniIpoPrice'), minimumShares = Math.max(1, Math.floor(read('miniMinShares')));
   const depositRate = Math.min(100, read('miniDepositRate')) / 100;
   const allocatedShares = Math.floor(read('miniAllocated')), returnRate = Number(document.getElementById('miniReturnPct').value) || 0;
@@ -268,6 +279,23 @@ function updateSmallLotEstimate() {
   $('#miniProfitResult').textContent = `${profit > 0 ? '+' : ''}${fmtWon(profit)}`;
   $('#miniProfitResult').classList.toggle('is-loss', profit < 0);
   $('#miniCalcNote').textContent = `최소 신청 ${minimumShares.toLocaleString('ko-KR')}주 · 배정 ${allocatedShares.toLocaleString('ko-KR')}주 가정 · 공모가 대비 ${returnRate}% 매도 · 수수료 ${fmtWon(fee)} 반영. 배정되면 증거금 외 잔금을 납부해야 합니다.`;
+}
+function selectIpoForCalculator(item) {
+  const payload = item.source_payload || {}, confirmed = Number(String(payload.confirmed_price || '').replace(/[^\d.]/g, ''));
+  const band = Array.isArray(payload.price_band) ? payload.price_band.map(Number) : [];
+  let price = null, basis = '가격을 공시에서 찾지 못했습니다. 직접 입력해 주세요.';
+  if (confirmed > 0) { price = confirmed; basis = '확정 공모가'; }
+  else if (band.length === 2 && band[0] > 0 && band[1] >= band[0]) {
+    price = band[0]; basis = `희망 공모가 ${fmtWon(band[0])}~${fmtWon(band[1])} · 하단가 기준(미확정)`;
+  } else {
+    const match = String(item.price || '').match(/[0-9][0-9,]*/);
+    const parsed = match ? Number(match[0].replaceAll(',', '')) : 0;
+    if (parsed > 0) { price = parsed; basis = `공시 가격 표기 ${fmtWon(parsed)} · 원문 확인 필요`; }
+  }
+  $('#miniIpoPrice').value = price ? String(price) : '';
+  $('#miniSelectedStock').textContent = `${item.name} · ${basis}`;
+  document.querySelectorAll('#ipoRows tr[data-ipo-id]').forEach(row => row.classList.toggle('is-calc-selected', row.dataset.ipoId === String(item.id)));
+  updateSmallLotEstimate();
 }
 document.querySelectorAll('.chicken-fields input').forEach(input => input.addEventListener('input', updateSmallLotEstimate));
 updateSmallLotEstimate();
