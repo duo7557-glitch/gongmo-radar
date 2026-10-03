@@ -22,3 +22,9 @@
 .picks-method-row>section:hover,.picks-method-row>section.is-open{z-index:40}
 .picks-method-row>section:hover .pop-body,.picks-method-row>section.is-open .pop-body{display:block;position:absolute;left:0;right:0;top:calc(100% + 8px);max-height:70vh;overflow:auto;z-index:40;background:#fff;border:1px solid #cfe3d3;border-radius:10px;box-shadow:0 14px 34px #0f2a1f26;padding:18px;cursor:default}
 @media(max-width:1000px){.picks-method-row{grid-template-columns:1fr}.picks-method-row>section{height:auto}}
+
+/* 캘린더 납입일·상장일 표시 */
+.calendar-event{display:block;font-size:10px;line-height:1.35;border-radius:4px;padding:2px 5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calendar-event.is-pay{background:#eaf1fb;color:#2b5797}
+.calendar-event.is-list{background:#e6f4ea;color:#1f6842}
+.calendar-legend{font-size:11px;color:#6d7d72;margin:10px 0 0}

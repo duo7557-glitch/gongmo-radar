@@ -260,7 +260,8 @@ function renderCalendar(entries) {
     if (!day) return '<div class="calendar-cell is-empty"></div>';
     const items = byDay(day);
     const shown = items.slice(0, 3);
-    return `<div class="calendar-cell${day === today ? ' is-today' : ''}"><span class="calendar-date">${Number(day.slice(8))}</span><div class="calendar-items">${shown.map(item => {
+    const events = [...entries.filter(item => item.payment_date === day).map(item => ({ kind: 'pay', label: item.name + ' 납입' })), ...entries.filter(item => listingDateOf(item) === day).map(item => ({ kind: 'list', label: item.name + ' 상장' }))];
+    return `<div class="calendar-cell${day === today ? ' is-today' : ''}"><span class="calendar-date">${Number(day.slice(8))}</span><div class="calendar-items">${events.map(event => `<span class="calendar-event is-${event.kind}">${escapeHtml(event.label)}</span>`).join('')}${shown.map(item => {
       const score = scoreOf(item);
       const hot = hotReasons(item).length > 0;
       return `<button class="calendar-pill${hot ? ' is-hot' : ''}" data-detail="${escapeHtml(item.id)}" style="--pill-color:${score === null ? '#909b94' : scoreColor(score)}" title="${escapeHtml(item.name + (hot ? ' · 핫한 공모주: ' + hotReasons(item).join(' · ') : ''))}">${hot ? '🔥 ' : ''}${escapeHtml(item.name)}</button>`;
