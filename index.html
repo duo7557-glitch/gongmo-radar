@@ -21,19 +21,27 @@
   </header>
 
   <main id="top">
-    <section class="hero">
-      <div class="hero-copy">
+    <section class="hero" id="hero">
+      <div class="hero-main">
         <p class="eyebrow"><span></span> IPO intelligence, simplified</p>
-        <h1>이번 달 공모주,<br /><em>기준을 보고</em> 고르세요.</h1>
-        <p class="hero-text">월별 청약 일정과 공시 원문을 한눈에. 관심 종목을 저장하고, 근거가 확인된 분석을 비교해 보세요.</p>
-        <div class="hero-actions"><a class="primary-button" href="#calendar" id="calendarCta">이번 달 일정 보기 <span>→</span></a></div>
+        <h1>공모주, 일정과 <em>근거</em>를<br />한 화면에서.</h1>
+        <p class="hero-text">청약 일정, 거래소 확정 공모가, 공시로 확인되는 수요·확약 지표만 모았습니다. 확인되지 않은 값은 비워 둡니다.</p>
+        <div class="hero-actions">
+          <a class="primary-button" href="#calendar" id="calendarCta">이번 달 일정 보기 <span>→</span></a>
+          <a class="hero-link" href="#live">상장일 실시간 차트</a>
+          <a class="hero-link" href="#ranking">수익률 TOP 10</a>
+        </div>
         <p class="source-note">정보 출처: DART · KRX KIND · 주관사 공지 &nbsp;|&nbsp; 투자 판단의 책임은 이용자에게 있습니다.</p>
       </div>
-      <div class="score-card" aria-label="유망도 점수 안내">
-        <div class="score-card-top"><span>THIS MONTH'S SIGNAL</span><b id="heroMonth">이번 달</b></div>
-        <div class="radar-wrap"><div class="radar"><i></i><i></i><i></i><strong id="heroScore">—</strong><small>최고 분석 점수 / 100</small></div></div>
-        <div class="score-card-bottom"><div><span>공모주 일정</span><b id="stockCount">—</b></div><div><span>3일 내 청약 마감</span><b id="closingCount">—</b></div></div>
-      </div>
+      <aside class="hero-panel" aria-label="이번 달 요약">
+        <div class="hero-panel-head"><span>THIS MONTH</span><b id="heroMonth">이번 달</b></div>
+        <div class="hero-stats">
+          <div><span>공모주</span><b id="stockCount">—</b><small>개 종목</small></div>
+          <div><span>청약 마감 임박</span><b id="closingCount">—</b><small>3일 내</small></div>
+          <div><span>최고 자동 점수</span><b id="heroScore">—</b><small>분석 대기 제외</small></div>
+        </div>
+        <p class="hero-panel-note">점수는 공시 지표 2개 이상이 확인된 종목만 계산합니다. <a href="#method">계산 기준</a></p>
+      </aside>
     </section>
 
     <section class="dashboard" id="calendar">
