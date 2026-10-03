@@ -6,6 +6,7 @@
  */
 import { unzipSync } from 'fflate';
 import { collectOfferings, createDartClient } from '../supabase/functions/_shared/dart.mjs';
+import { sectorFor } from './sector.mjs';
 import { loadEnv } from './load-env.mjs';
 await loadEnv();
 
@@ -43,6 +44,8 @@ try {
   const result = await collectOfferings({ client, unzip: unzipSync, existing, range, knownListings });
 
   for (const listing of result.listings) {
+    const previous = existing.find(row => row.source_key === listing.source_key);
+    listing.sector = previous?.sector || await sectorFor(client, listing.dart_corp_code).catch(() => '');
     await rest('ipo_listings?on_conflict=source_key', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify(listing) });
   }
 

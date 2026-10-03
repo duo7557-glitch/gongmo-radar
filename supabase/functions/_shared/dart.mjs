@@ -160,7 +160,7 @@ export function createDartClient(key, fetcher = fetch, { retryDelayMs = 3000 } =
     } while (page <= total);
     return rows;
   }
-  return { list, equity: (code, range) => request('estkRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), depositary: (code, range) => request('stkdpRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), document: no => request('document.xml', { rcept_no: no }, true) };
+  return { list, company: corp => request('company.json', { corp_code: corp }), equity: (code, range) => request('estkRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), depositary: (code, range) => request('stkdpRs.json', { corp_code: code, bgn_de: range.begin, end_de: range.end }), document: no => request('document.xml', { rcept_no: no }, true) };
 }
 export async function collectOfferings({ client, unzip, now = new Date(), existing = [], range: overrideRange, knownListings = null, concurrency = 4 } = {}) {
   const range = overrideRange || dateRange(now);
