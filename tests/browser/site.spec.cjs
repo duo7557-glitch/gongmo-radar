@@ -90,9 +90,13 @@ test('footer links to readable policy and guide pages', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.site-footer')).toHaveCSS('position', 'fixed');
   await expect(page.locator('.site-footer')).toHaveCSS('bottom', '0px');
+  expect((await page.locator('.site-footer').boundingBox()).width).toBeGreaterThan(800);
   await expect(page.locator('.site-footer a[href="policy/"]')).toHaveText('이용약관·개인정보 안내');
-  await expect(page.locator('.site-footer a[href="#contact"]')).toHaveText('문의·신고');
-  await page.locator('.site-footer a[href="#contact"]').click();
+  await expect(page.locator('#openContact')).toHaveText('문의·신고');
+  const pageScrollBeforeContact = await page.evaluate(() => window.scrollY);
+  await page.locator('#openContact').click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(pageScrollBeforeContact);
   await expect(page.locator('#contact')).toBeVisible();
   await expect(page.locator('#contact')).toContainText('광고 제휴 문의');
   await expect(page.locator('#contact')).toContainText('arcmangsk@naver.com');

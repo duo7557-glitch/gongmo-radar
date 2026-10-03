@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Gowun+Dodum&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="workspace.css?v=20261004-footer-contact" />
+  <link rel="stylesheet" href="workspace.css?v=20261004-footer-contact-v2" />
   <link rel="stylesheet" href="chat.css" />
   <link rel="stylesheet" href="small-lot.css" />
   <link rel="stylesheet" href="calendar-embed.css" />
@@ -75,7 +75,7 @@
     </div>
     <dialog class="contact-dialog" id="contact" aria-labelledby="contactTitle"><button class="dialog-close" id="closeContact" type="button" aria-label="문의 안내 닫기">×</button><p class="eyebrow">CONTACT · REPORT · ADS</p><h2 id="contactTitle">문의 · 신고 · 광고 문의</h2><p>서비스 오류, 공시 정보 정정, 개인정보 관련 요청, 채팅 신고 및 광고 제휴 문의를 이메일로 받고 있습니다.</p><p>종목명과 문제를 확인한 화면, 발생 날짜를 함께 적어주시면 확인에 도움이 됩니다. 채팅 신고는 해당 메시지의 신고 버튼도 이용할 수 있습니다.</p><p class="contact-manual-note">메일 앱이 자동으로 열리지는 않습니다. 사용 중인 메일 서비스에서 아래 주소를 직접 받는 사람에 입력해 주세요.</p><span class="contact-email">arcmangsk@naver.com</span></dialog>
   </section>
-  <footer class="site-footer"><a class="brand" href="#top"><span class="brand-mark">G</span>공모주 <b>레이더</b></a><div class="footer-links"><a href="#siteInfo">공지사항</a><a href="guide/">이용 가이드</a><a href="policy/">이용약관·개인정보 안내</a><a href="mailto:arcmangsk@naver.com?subject=%5B공모주%20레이더%5D%20문의">문의·신고</a></div><div class="service-status" aria-label="서비스 상태"><span><i class="status-led" id="webStatusLed"></i>웹 <b id="webStatus">접속 중</b></span><span><i class="status-led pending" id="apiStatusLed"></i>공모주 데이터 <b id="apiStatus">확인 중</b></span><small id="statusCheckedAt">상태 확인 중</small></div><div class="coffee-wrap"><button class="coffee-button" id="openSupport" type="button" aria-haspopup="dialog" aria-controls="supportDialog">후원하기</button></div><span class="footer-copyright">© 2026 Gongmo Radar · 공시와 시세의 기준일을 확인해 주세요.</span></footer>
+  <footer class="site-footer"><a class="brand" href="#top"><span class="brand-mark">G</span>공모주 <b>레이더</b></a><div class="footer-links"><a href="#siteInfo">공지사항</a><a href="guide/">이용 가이드</a><a href="policy/">이용약관·개인정보 안내</a><button class="footer-contact-button" id="openContact" type="button" aria-haspopup="dialog" aria-controls="contact">문의·신고</button></div><div class="service-status" aria-label="서비스 상태"><span><i class="status-led" id="webStatusLed"></i>웹 <b id="webStatus">접속 중</b></span><span><i class="status-led pending" id="apiStatusLed"></i>공모주 데이터 <b id="apiStatus">확인 중</b></span><small id="statusCheckedAt">상태 확인 중</small></div><div class="coffee-wrap"><button class="coffee-button" id="openSupport" type="button" aria-haspopup="dialog" aria-controls="supportDialog">후원하기</button></div><span class="footer-copyright">© 2026 Gongmo Radar · 공시와 시세의 기준일을 확인해 주세요.</span></footer>
   <dialog id="supportDialog" class="support-dialog" aria-labelledby="supportTitle"><button class="dialog-close" id="closeSupport" type="button" aria-label="후원 안내 닫기">×</button><p class="eyebrow"><span></span> VOLUNTARY SUPPORT</p><h2 id="supportTitle">공모주 레이더<br />운영에 힘 보태기</h2><div class="support-payment-card"><div class="support-bank-label"><span class="support-bank-mark">T</span> 토스뱅크</div><img class="support-qr" src="toss-support-qr.png" width="260" height="260" alt="토스뱅크 송금 QR 코드" /><div class="support-account-row"><b id="supportAccount">1000-0259-4445</b><button id="copySupportAccount" type="button">계좌 복사</button></div></div><a class="support-pay-link" id="quickPaySupport" href="supertoss://send?amount=0&amp;bank=%ED%86%A0%EC%8A%A4%EB%B1%85%ED%81%AC&amp;accountNo=100002594445&amp;origin=qr" target="_blank" rel="noopener noreferrer">토스 앱으로 간편 송금 후원하기 ↗</a><p class="support-copy">후원금은 공모주 레이더의 운영 및 개선에 사용됩니다.</p><p class="support-caution">자발적 운영 후원이며 기부금 영수증은 발급되지 않습니다. 송금 전 토스 앱에서 받는 분을 확인해 주세요.</p><p id="supportFeedback" class="support-feedback" role="status" aria-live="polite"></p></dialog>
   <dialog id="detailDialog"><button class="dialog-close" id="closeDialog" aria-label="닫기">×</button><div id="dialogContent"></div></dialog>
   <dialog id="reportDialog"><form id="reportForm"><h2>메시지 신고</h2><p>운영자가 내용을 확인합니다.</p><label>신고 사유<select id="reportReason"><option value="spam">도배 · 광고</option><option value="abuse">욕설 · 괴롭힘</option><option value="misinformation">허위 정보 · 수익 보장</option><option value="other">기타</option></select></label><p id="reportFeedback" role="status"></p><div class="dialog-actions"><button type="button" id="cancelReport" class="view-button">취소</button><button type="submit" class="primary-button">신고 접수</button></div></form></dialog>
@@ -95,6 +95,6 @@
   <script src="chat-settings.js"></script>
   <script src="news.js"></script>
   <script src="paper.js"></script>
-  <script src="status.js?v=20261004-footer-contact"></script>
+  <script src="status.js?v=20261004-footer-contact-v2"></script>
 </body>
 </html>
