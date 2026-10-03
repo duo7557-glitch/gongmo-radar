@@ -60,3 +60,14 @@
   .calendar-kinds{gap:6px 10px;font-size:11px}
   .calendar-kinds label{padding:2px 6px}
 }
+
+/* 공모주 뉴스는 한 줄 목록으로 짧게 */
+.news{padding:18px 24px}
+.news .section-heading{margin-bottom:10px}
+.news .section-heading h2{font-size:18px}
+.news-list{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.news-item{padding:9px 12px;gap:3px;border-radius:6px}
+.news-title{font-size:13px;-webkit-line-clamp:1}
+.news-summary{font-size:11px;line-height:1.45;-webkit-line-clamp:2}
+.news-meta{font-size:9px}
+.news .chart-caption{font-size:9px;margin:6px 0 0}
