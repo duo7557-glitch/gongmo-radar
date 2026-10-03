@@ -153,3 +153,10 @@
 #hero .hero-card-body small{font-size:10px;color:#9cc4ab}
 #hero .hero-card-empty{font-size:12px;color:#9cc4ab;margin:0}
 #hero .hero-today small{display:none}
+
+/* 히어로 오늘 청약 카드: 어두운 배경 위에서 잘 보이도록 밝은 카드 */
+#hero .hero-card{background:#e4f7a0;border:1px solid #d7f36b;color:#173b2d;box-shadow:0 4px 14px #00000033}
+#hero .hero-card:hover{background:#f0ffc0}
+#hero .hero-card-date{background:#173b2d;color:#e4f7a0}
+#hero .hero-card-body b{color:#173b2d;font-size:14px}
+#hero .hero-card-body small{color:#3f6b52;font-size:11px}
