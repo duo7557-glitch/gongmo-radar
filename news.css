@@ -43,8 +43,9 @@
 
 /* 모바일: 칩은 색 배지만 보이고 종목명은 누르면 상세에서 확인 */
 @media(max-width:720px){
-  #calendarView{overflow:hidden}
-  .calendar-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
+  #calendarView,.calendar-wrap{min-width:0;width:100%}
+  .calendar-dow,.calendar-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
+  .calendar-cell{contain:paint}
   .calendar-dow span{font-size:10px;padding:6px 0}
   .calendar-cell{min-height:70px;padding:3px 2px;min-width:0;overflow:hidden}
   .calendar-date{font-size:10px}
