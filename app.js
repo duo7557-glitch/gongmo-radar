@@ -248,19 +248,34 @@ function renderActionRail(monthly, active, closingSoon) {
   const content = targets.length ? targets.map(item => `<button class="agenda-item" data-detail="${escapeHtml(item.id)}"><span class="agenda-date">${escapeHtml(dateLabel(item.subscription_start))}</span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.broker || '주관사 확인중')} · ${escapeHtml(statusOf(item))}</small><span aria-hidden="true">→</span></button>`).join('') : '<div class="agenda-empty">등록된 청약 일정이 아직 없습니다. 새 공시가 반영되면 이곳에 표시됩니다.</div>';
   $('#actionRail').innerHTML = `<div class="agenda-heading"><span>${lead}</span><small>청약일 기준 · 공시 변경 가능</small></div><div class="agenda-list">${content}</div>`;
 }
+const CALENDAR_KINDS = [['demand', '수요예측'], ['subscription', '청약'], ['pay', '납입'], ['list', '상장']];
+let calendarKinds = null, calendarEntries = [];
+function loadCalendarKinds() {
+  try { const saved = JSON.parse(localStorage.getItem('gongmo-radar-cal-kinds')); if (Array.isArray(saved)) return new Set(saved); } catch {}
+  return new Set(CALENDAR_KINDS.map(kind => kind[0]));
+}
 function renderCalendar(entries) {
   const grid = $('#calendarGrid');
+  calendarEntries = entries;
+  calendarKinds ||= loadCalendarKinds();
+  document.querySelectorAll('#calendarKinds input').forEach(input => { input.checked = calendarKinds.has(input.value); });
   const [year, mon] = currentMonth.split('-').map(Number);
   const firstDow = new Date(Date.UTC(year, mon - 1, 1)).getUTCDay();
   const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
   const cells = Array(firstDow).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => `${currentMonth}-${String(i + 1).padStart(2, '0')}`));
   while (cells.length % 7) cells.push(null);
-  const byDay = day => entries.filter(item => item.subscription_start && item.subscription_end && item.subscription_start <= day && day <= item.subscription_end);
+  const byDay = day => calendarKinds.has('subscription') ? entries.filter(item => item.subscription_start && item.subscription_end && item.subscription_start <= day && day <= item.subscription_end) : [];
   grid.innerHTML = cells.map(day => {
     if (!day) return '<div class="calendar-cell is-empty"></div>';
     const items = byDay(day);
     const shown = items.slice(0, 3);
-    const events = [...entries.filter(item => item.payment_date === day).map(item => ({ kind: 'pay', label: item.name + ' 납입' })), ...entries.filter(item => listingDateOf(item) === day).map(item => ({ kind: 'list', label: item.name + ' 상장' }))];
+    const demandOn = (item, key) => item.source_payload?.demand?.[key] === day;
+    const events = [
+      ...(calendarKinds.has('demand') ? entries.filter(item => demandOn(item, 'start')).map(item => ({ kind: 'demand', label: item.name + ' 수요예측 시작' })) : []),
+      ...(calendarKinds.has('demand') ? entries.filter(item => demandOn(item, 'end')).map(item => ({ kind: 'demand', label: item.name + ' 수요예측 마감' })) : []),
+      ...(calendarKinds.has('pay') ? entries.filter(item => item.payment_date === day).map(item => ({ kind: 'pay', label: item.name + ' 납입' })) : []),
+      ...(calendarKinds.has('list') ? entries.filter(item => listingDateOf(item) === day).map(item => ({ kind: 'list', label: item.name + ' 상장' })) : []),
+    ];
     return `<div class="calendar-cell${day === today ? ' is-today' : ''}"><span class="calendar-date">${Number(day.slice(8))}</span><div class="calendar-items">${events.map(event => `<span class="calendar-event is-${event.kind}">${escapeHtml(event.label)}</span>`).join('')}${shown.map(item => {
       const score = scoreOf(item);
       const hot = hotReasons(item).length > 0;
@@ -268,6 +283,11 @@ function renderCalendar(entries) {
     }).join('')}${items.length > shown.length ? `<span class="calendar-more">+${items.length - shown.length}개 더</span>` : ''}</div></div>`;
   }).join('');
 }
+document.querySelector('#calendarKinds').addEventListener('change', () => {
+  calendarKinds = new Set([...document.querySelectorAll('#calendarKinds input:checked')].map(input => input.value));
+  try { localStorage.setItem('gongmo-radar-cal-kinds', JSON.stringify([...calendarKinds])); } catch {}
+  renderCalendar(calendarEntries);
+});
 function setViewMode(mode) {
   viewMode = mode; store('gongmo-radar-view', mode);
   $('#listView').hidden = mode !== 'list'; $('#calendarView').hidden = mode !== 'calendar';

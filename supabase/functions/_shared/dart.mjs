@@ -1,6 +1,6 @@
 // Pure normalization + injectable HTTP layer, shared by local runner and Edge Function.
 // Bump when parsing rules change so previously imported rows are recomputed once.
-export const PARSER_VERSION = 8;
+export const PARSER_VERSION = 9;
 const OFFERING_FILING = /증권신고서.*(?:지분증권|증권예탁증권)/;
 export class DartError extends Error {
   constructor(status) { super(`OpenDART 오류 ${status}`); this.status = status; }
@@ -86,6 +86,13 @@ export function extractSubscriptionBrokers(text, underwriters = []) {
   return allMatched;
 }
 // kindListed: KIND 신규상장(공모) 목록에 종목코드가 있으면 원문 문구가 달라도(예: 케이뱅크) 실제 공모 상장으로 인정한다.
+// 증권신고서 "수요예측 일시" 표의 기간(수요예측 시작~마감)을 읽는다.
+export function demandPeriod(text) {
+  const at = String(text || '').indexOf('수요예측 일시');
+  if (at < 0) return null;
+  const dates = datesFromText(text.slice(at + 7, at + 160));
+  return dates ? { start: dates.start, end: dates.end } : null;
+}
 export function normalizeOffering(payload, report, text, { kindListed = false } = {}) {
   const groups = payload.group || [];
   const general = groupRows(groups, '일반사항').filter(row => row.rcept_no === report.rcept_no);
@@ -115,7 +122,7 @@ export function normalizeOffering(payload, report, text, { kindListed = false } 
     source_dart_url: 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + report.rcept_no,
     status: (report.rm || '').includes('철') ? '철회' : '예정', score: null, score_status: 'pending',
     reason: '기관 수요예측·의무보유확약·유통물량 자료 확인 후 분석됩니다.', tags: ['DART 공시', '분석 대기'],
-    is_published: !(report.rm || '').includes('철'), source_payload: { evidence, general: detail, securities: stocks, underwriters: brokers, subscription_brokers: subscriptionBrokers, price_band: band ? band.map(v => Number(v.replaceAll(',', ''))) : null, offer_shares: offerShares, seller_shares: sellerShares }, updated_at: new Date().toISOString()
+    is_published: !(report.rm || '').includes('철'), source_payload: { evidence, demand: demandPeriod(text), general: detail, securities: stocks, underwriters: brokers, subscription_brokers: subscriptionBrokers, price_band: band ? band.map(v => Number(v.replaceAll(',', ''))) : null, offer_shares: offerShares, seller_shares: sellerShares }, updated_at: new Date().toISOString()
   } };
 }
 export function createDartClient(key, fetcher = fetch, { retryDelayMs = 3000 } = {}) {

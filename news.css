@@ -28,3 +28,4 @@
 .calendar-event.is-pay{background:#eaf1fb;color:#2b5797}
 .calendar-event.is-list{background:#e6f4ea;color:#1f6842}
 .calendar-legend{font-size:11px;color:#6d7d72;margin:10px 0 0}
+.calendar-kinds{display:flex;flex-wrap:wrap;gap:10px 14px;margin:10px 0 0;font-size:12px;color:#4c5f54}.calendar-kinds label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}.calendar-event.is-demand{background:#f0ecfb;color:#5b3fa0}
