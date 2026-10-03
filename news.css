@@ -10,3 +10,15 @@
 #liveChart{touch-action:pan-y;user-select:none;position:relative}
 #liveChart.is-drag{cursor:grabbing}
 #liveChart .live-svg{cursor:crosshair}
+
+/* 공개지표 분석과 점수 근거: 제목만 보이고, 마우스를 올리거나 누르면 전체 내용이 팝업으로 열린다. 바깥을 누르면 닫힌다 */
+.picks-method-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:0 0 12px}
+.picks-method-row>section{position:relative;height:76px;padding:10px 14px;margin:0;min-width:0;border:1px solid #e0e8dd;border-radius:8px;background:#fff;cursor:pointer;outline:none}
+.picks-method-row .section-heading,.picks-method-row .method-compact-heading{margin:0}
+.picks-method-row .section-heading h2,.picks-method-row .method-compact-heading h2{font-size:15px}
+.picks-method-row .section-heading .eyebrow,.picks-method-row .method-compact-heading .eyebrow{font-size:8px;margin:0 0 4px}
+.picks-method-row .section-side{display:none}
+.picks-method-row .pop-body{display:none}
+.picks-method-row>section:hover,.picks-method-row>section.is-open{z-index:40}
+.picks-method-row>section:hover .pop-body,.picks-method-row>section.is-open .pop-body{display:block;position:absolute;left:0;right:0;top:calc(100% + 8px);max-height:70vh;overflow:auto;z-index:40;background:#fff;border:1px solid #cfe3d3;border-radius:10px;box-shadow:0 14px 34px #0f2a1f26;padding:18px;cursor:default}
+@media(max-width:1000px){.picks-method-row{grid-template-columns:1fr}.picks-method-row>section{height:auto}}
