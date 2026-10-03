@@ -198,7 +198,8 @@ function render() {
   $('#closingCount').textContent = closingSoon.length;
   const todayOpen = active.filter(item => item.subscription_start <= today && item.subscription_end >= today);
   $('#todayCount').textContent = todayOpen.length;
-  $('#todayNames').textContent = todayOpen.map(item => item.name).join(' · ');
+  $('#todayNames').textContent = '';
+  $('#heroTodayCards').innerHTML = todayOpen.length ? todayOpen.slice(0, 4).map(item => `<button class="hero-card" type="button" data-detail="${escapeHtml(item.id)}"><span class="hero-card-date">${item.subscription_start.slice(5).replace('-', '.')}</span><span class="hero-card-body"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.broker || '주관사 확인중')} · 진행중</small></span></button>`).join('') : '<p class="hero-card-empty">오늘 청약 중인 종목이 없습니다.</p>';
   const entries = quickFilter === 'active' ? baseEntries.filter(item => statusOf(item) === '진행중') : quickFilter === 'closing' ? baseEntries.filter(item => item.subscription_end >= today && item.subscription_end <= threeDaysLater.toISOString().slice(0, 10)) : quickFilter === 'hot' ? baseEntries.filter(item => hotReasons(item).length) : baseEntries;
   $('#calendarCta').innerHTML = active.length ? `이번 달 ${active.length}개 일정 보기 <span>→</span>` : '월별 일정 보기 <span>→</span>';
   $('#resultCount').textContent = monthly.length ? `${entries.length}개 종목 표시 중` : '';
