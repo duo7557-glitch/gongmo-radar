@@ -123,7 +123,9 @@
 #calendar>#hero{order:-10}
 #calendar>.section-heading{order:-9}
 #calendar>.calendar-head{order:-8}
-#calendar>.calendar-calculator-grid{order:-7}
+#calendar>.filter-bar{order:-7}
+#calendar>.result-bar{order:-6}
+#calendar>.calendar-calculator-grid{order:-5}
 #calendar>.week-live-grid{order:1}
 
 /* 오른쪽 열이 좁을 때: 수익률 TOP 10은 한 줄로, 상장 성과 표·차트는 칸 안에 맞춤 */
