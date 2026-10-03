@@ -7,7 +7,7 @@
 
   const css = document.createElement('link');
   css.rel = 'stylesheet';
-  css.href = 'news.css';
+  css.href = 'news.css?v=20261004-footer-fixed';
   document.head.appendChild(css);
 
   const section = document.createElement('section');

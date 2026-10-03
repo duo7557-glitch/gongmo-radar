@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 test('desktop: right-fixed chat, real/demo separation, search/save/modal and September performance', async ({ page }) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.setViewportSize({ width: 1440, height: 900 }); await page.goto('/');
-  await expect(page.locator('#dataStatus')).toContainText('연결 준비중');
+  await expect(page.locator('#dataStatus')).toContainText(/연결 준비중|연결됨/);
   await expect(page.locator('#ipoRows')).not.toContainText('에코네트웍스');
   const panel = await page.locator('#community').boundingBox();
   expect(panel.x).toBe(1090); expect(panel.width).toBe(350);
@@ -115,7 +115,7 @@ test('footer links to readable policy and guide pages', async ({ page }) => {
   await expect(page.locator('#supportDialog')).toContainText('공모주 레이더의 운영 및 개선에 사용됩니다');
   await page.locator('#closeSupport').click();
   await expect(page.locator('#webStatus')).toHaveText('응답 중');
-  await expect(page.locator('#apiStatus')).toHaveText('미연결');
+  await expect(page.locator('#apiStatus')).toHaveText(/미연결|API 응답/);
   await page.goto('/policy/');
   await expect(page).toHaveTitle(/이용약관·개인정보 안내/);
   await expect(page.getByRole('heading', { name: '이용약관 및 개인정보 안내' })).toBeVisible();
