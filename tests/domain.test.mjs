@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import core from '../radar-core.js';
 import performance from '../performance-core.js';
-import { datesFromText, normalizeOffering, createDartClient, ipoEvidence, collectOfferings, confirmedPrice, priceBand, PARSER_VERSION } from '../supabase/functions/_shared/dart.mjs';
+import { datesFromText, normalizeOffering, createDartClient, ipoEvidence, collectOfferings, confirmedPrice, priceBand, extractSubscriptionBrokers, PARSER_VERSION } from '../supabase/functions/_shared/dart.mjs';
 
 test('월을 걸치는 청약은 두 달에 표시하고 상태는 한국 날짜로 계산한다', () => {
   const row = { subscription_start: '2026-09-30', subscription_end: '2026-10-02' };
@@ -106,6 +106,11 @@ test('확정 공모가는 발행조건확정 정정 후 값만, 희망가는 밴
   assert.equal(confirmedPrice('협의한 후 1주당 확정공모가액을 10,000원으로 최종 결정하였습니다'), '10,000');
   assert.equal(confirmedPrice('제시 희망공모가액인 13,000원 ~ 16,000원 중 최저가액인 13,000원 기준입니다'), null);
   assert.deepEqual(priceBand('제시 희망공모가액인 13,000원 ~ 16,000원 중 최저가액인 13,000원 기준입니다'), ['13,000', '16,000']);
+});
+test('청약취급처 원문에서 일반청약자 접수 증권사만 추린다', () => {
+  const text = '청약취급처: ① 우리사주조합 : 미래에셋증권㈜ ② 기관투자자 : 미래에셋증권㈜ 본점 ③ 일반청약자 : 미래에셋증권㈜ 및 현대차증권㈜, 삼성증권㈜ 본·지점 ④ 일반청약자는 중복 청약을 할 수 없습니다.';
+  assert.deepEqual(extractSubscriptionBrokers(text, ['미래에셋증권', '현대차증권', 'NH투자증권']), ['미래에셋증권', '현대차증권', '삼성증권']);
+  assert.deepEqual(extractSubscriptionBrokers('청약취급처는 각 인수단에 문의하시기 바랍니다.', ['미래에셋증권']), []);
 });
 test('기도산업·스팩식 상장 문구도 인식하지만 유상증자는 거른다', () => {
   assert.ok(ipoEvidence('주8) 본 주식은 코스닥시장 상장을 목적으로 모집(매출)하는 것으로 상장예비심사 승인을 받았습니다'));
