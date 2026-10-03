@@ -1,6 +1,6 @@
 // Pure normalization + injectable HTTP layer, shared by local runner and Edge Function.
 // Bump when parsing rules change so previously imported rows are recomputed once.
-export const PARSER_VERSION = 9;
+export const PARSER_VERSION = 10;
 const OFFERING_FILING = /증권신고서.*(?:지분증권|증권예탁증권)/;
 export class DartError extends Error {
   constructor(status) { super(`OpenDART 오류 ${status}`); this.status = status; }
@@ -93,7 +93,7 @@ export function demandPeriod(text) {
   const dates = datesFromText(text.slice(at + 7, at + 160));
   return dates ? { start: dates.start, end: dates.end } : null;
 }
-export function normalizeOffering(payload, report, text, { kindListed = false } = {}) {
+export function normalizeOffering(payload, report, text, { kindListed = false, demand = null } = {}) {
   const groups = payload.group || [];
   const general = groupRows(groups, '일반사항').filter(row => row.rcept_no === report.rcept_no);
   if (general.length !== 1) return { review: '최신 정정 공시와 API 요약 접수번호가 일치하지 않거나 일반사항이 모호합니다.' };
@@ -122,7 +122,7 @@ export function normalizeOffering(payload, report, text, { kindListed = false } 
     source_dart_url: 'https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + report.rcept_no,
     status: (report.rm || '').includes('철') ? '철회' : '예정', score: null, score_status: 'pending',
     reason: '기관 수요예측·의무보유확약·유통물량 자료 확인 후 분석됩니다.', tags: ['DART 공시', '분석 대기'],
-    is_published: !(report.rm || '').includes('철'), source_payload: { evidence, demand: demandPeriod(text), general: detail, securities: stocks, underwriters: brokers, subscription_brokers: subscriptionBrokers, price_band: band ? band.map(v => Number(v.replaceAll(',', ''))) : null, offer_shares: offerShares, seller_shares: sellerShares }, updated_at: new Date().toISOString()
+    is_published: !(report.rm || '').includes('철'), source_payload: { evidence, demand: demand || demandPeriod(text), general: detail, securities: stocks, underwriters: brokers, subscription_brokers: subscriptionBrokers, price_band: band ? band.map(v => Number(v.replaceAll(',', ''))) : null, offer_shares: offerShares, seller_shares: sellerShares }, updated_at: new Date().toISOString()
   } };
 }
 export function createDartClient(key, fetcher = fetch, { retryDelayMs = 3000 } = {}) {
@@ -204,7 +204,15 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
         if (matched) report = matched;
       }
       const text = documentText(await client.document(report.rcept_no), unzip);
-      const normalized = normalizeOffering(payload, report, text, { kindListed: Boolean(knownListings?.has(candidate.stock_code || report.stock_code)) });
+      // 정정 증권신고서에는 수요예측 일시 표가 없을 수 있어, 같은 회사의 가장 이른 증권신고서에서 기간을 찾는다.
+      let demand = demandPeriod(text);
+      if (!demand) {
+        for (const row of history.filter(row => OFFERING_FILING.test(row.report_nm || '')).sort((a, b) => a.rcept_no.localeCompare(b.rcept_no))) {
+          demand = demandPeriod(documentText(await client.document(row.rcept_no), unzip));
+          if (demand) break;
+        }
+      }
+      const normalized = normalizeOffering(payload, report, text, { kindListed: Boolean(knownListings?.has(candidate.stock_code || report.stock_code)), demand });
       if (normalized.listing) {
         const newest = (history || [candidate]).filter(row => OFFERING_FILING.test(row.report_nm || '')).reduce((a, b) => (b.rcept_no > a.rcept_no ? b : a), candidate);
         normalized.listing.source_payload.latest_receipt_no = newest.rcept_no;

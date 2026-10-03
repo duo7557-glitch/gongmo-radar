@@ -32,3 +32,12 @@
 
 /* 하단 메뉴는 화면을 내려도 항상 보이게 고정 */
 .site-footer{position:sticky;bottom:0;z-index:30}
+
+.cal-chip{display:flex;align-items:center;gap:5px;width:100%;border:0;border-radius:99px;padding:3px 7px 3px 3px;margin-top:3px;font:600 11px/1.3 "Gowun Dodum",sans-serif;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-chip i{font-style:normal;width:17px;height:17px;border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-size:10px;flex:none}
+.cal-chip.is-demand{background:#eef3ff;color:#2f5fbf}.cal-chip.is-demand i{background:#5b8def}
+.cal-chip.is-subscription{background:#ffeef6;color:#b83a7c}.cal-chip.is-subscription i{background:#ea5ba8}
+.cal-chip.is-refund{background:#e6f8f1;color:#1d7f58}.cal-chip.is-refund i{background:#2fbf8c}
+.cal-chip.is-list{background:#e5f7fd;color:#1a7ea6}.cal-chip.is-list i{background:#3bbde8}
+.calendar-kinds label{padding:2px 8px;border-radius:99px}.calendar-kinds .k-demand{background:#eef3ff}.calendar-kinds .k-subscription{background:#ffeef6}.calendar-kinds .k-refund{background:#e6f8f1}.calendar-kinds .k-list{background:#e5f7fd}
+.cal-chip.is-est{opacity:.6;border:1px dashed currentColor}
