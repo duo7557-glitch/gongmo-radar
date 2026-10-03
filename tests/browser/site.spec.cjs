@@ -88,6 +88,8 @@ test('calculator shows traditional ttasang profit and chat has no suggestion chi
 
 test('footer links to readable policy and guide pages', async ({ page }) => {
   await page.goto('/');
+  await expect(page.locator('.site-footer')).toHaveCSS('position', 'fixed');
+  await expect(page.locator('.site-footer')).toHaveCSS('bottom', '0px');
   await expect(page.locator('.site-footer a[href="policy/"]')).toHaveText('이용약관·개인정보 안내');
   await expect(page.locator('.site-footer a[href="#contact"]')).toHaveText('문의·신고');
   await page.locator('.site-footer a[href="#contact"]').click();
