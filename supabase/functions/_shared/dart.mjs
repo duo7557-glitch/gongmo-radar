@@ -1,6 +1,6 @@
 // Pure normalization + injectable HTTP layer, shared by local runner and Edge Function.
 // Bump when parsing rules change so previously imported rows are recomputed once.
-export const PARSER_VERSION = 7;
+export const PARSER_VERSION = 8;
 const OFFERING_FILING = /증권신고서.*(?:지분증권|증권예탁증권)/;
 export class DartError extends Error {
   constructor(status) { super(`OpenDART 오류 ${status}`); this.status = status; }
@@ -72,7 +72,8 @@ export function extractSubscriptionBrokers(text, underwriters = []) {
     ['메리츠증권', ['메리츠증권']], ['신영증권', ['신영증권']], ['다올투자증권', ['다올투자증권']],
     ['토스증권', ['토스증권']], ['한양증권', ['한양증권']], ['부국증권', ['부국증권']], ['유화증권', ['유화증권']]
   ];
-  for (const marker of markers.reverse()) {
+  const allMatched = [];
+  for (const marker of markers) {
     const nearby = source.slice(marker.index, marker.index + 1800);
     const generalStart = nearby.search(/일반\s*(?:청약자|공모청약)/);
     if (generalStart < 0) continue;
@@ -80,9 +81,9 @@ export function extractSubscriptionBrokers(text, underwriters = []) {
     const normalizedText = key(generalText);
     const matched = knownBrokers.filter(([, aliases]) => aliases.some(alias => normalizedText.includes(key(alias)))).map(([name, aliases]) => ({ name, position: Math.min(...aliases.map(alias => normalizedText.indexOf(key(alias))).filter(index => index >= 0)) })).sort((a, b) => a.position - b.position).map(({ name }) => name);
     for (const name of underwriters) if (key(name).length > 1 && normalizedText.includes(key(name)) && !matched.some(found => key(found) === key(name))) matched.push(name);
-    if (matched.length) return matched;
+    for (const name of matched) if (!allMatched.some(found => key(found) === key(name))) allMatched.push(name);
   }
-  return [];
+  return allMatched;
 }
 // kindListed: KIND 신규상장(공모) 목록에 종목코드가 있으면 원문 문구가 달라도(예: 케이뱅크) 실제 공모 상장으로 인정한다.
 export function normalizeOffering(payload, report, text, { kindListed = false } = {}) {
