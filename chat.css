@@ -1,0 +1,21 @@
+/* 채팅 설정 메뉴 · 글씨 크기 · 시간 숨김 */
+.chat-box{position:relative}
+.chat-settings-btn{border:0;background:none;font-size:14px;color:#6d7d72;padding:4px 6px;border-radius:6px;cursor:pointer;margin-left:6px}
+.chat-settings-btn:hover,.chat-settings-btn[aria-expanded="true"]{background:#eef4ef;color:#173b2d}
+.chat-menu{position:absolute;right:10px;top:48px;z-index:20;width:210px;background:#fff;border:1px solid #dfe5df;border-radius:10px;box-shadow:0 12px 28px #0002;padding:8px 6px}
+.chat-menu[hidden]{display:none}
+.chat-menu-title{font-size:10px;color:#8a968c;margin:8px 8px 4px}
+.chat-menu-row{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:0 4px}
+.chat-menu-row button{border:1px solid #e0e8dd;background:#fbfdf9;border-radius:6px;padding:6px 0;font-size:11px;color:#4c5f54;cursor:pointer}
+.chat-menu-row button[aria-pressed="true"]{background:#e2f4e7;border-color:#8cbfa1;color:#246841;font-weight:700}
+.chat-menu-item{display:flex;justify-content:space-between;align-items:center;width:100%;border:0;background:none;text-align:left;padding:8px;border-radius:6px;font-size:12px;color:#26372e;cursor:pointer}
+.chat-menu-item:hover{background:#f2f7f3}
+.chat-menu-item i{width:30px;height:16px;border-radius:99px;background:#cfd8d2;position:relative}
+.chat-menu-item i::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .15s}
+.chat-menu-item[aria-pressed="true"] i{background:#2f8a5b}
+.chat-menu-item[aria-pressed="true"] i::after{left:16px}
+.chat-box[data-size="large"] .message p{font-size:14px;line-height:1.7}
+.chat-box[data-size="xlarge"] .message p{font-size:16px;line-height:1.75}
+.chat-box[data-size="large"] .message-meta,.chat-box[data-size="xlarge"] .message-meta{font-size:11px}
+.chat-box.hide-time .message-meta time{display:none}
+.message.is-flash{background:#fff7d6;transition:background .3s}
