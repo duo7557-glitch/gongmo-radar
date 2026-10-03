@@ -93,11 +93,15 @@ test('footer links to readable policy and guide pages', async ({ page }) => {
   expect((await page.locator('.site-footer').boundingBox()).width).toBeGreaterThan(800);
   await expect(page.locator('.site-footer a[href="policy/"]')).toHaveText('이용약관·개인정보 안내');
   await expect(page.locator('#openContact')).toHaveText('문의·신고');
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
   const pageScrollBeforeContact = await page.evaluate(() => window.scrollY);
   await page.locator('#openContact').click();
   await expect(page).toHaveURL(/\/$/);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(pageScrollBeforeContact);
   await expect(page.locator('#contact')).toBeVisible();
+  const contactRect = await page.locator('#contact').boundingBox();
+  expect(contactRect.y).toBeGreaterThanOrEqual(0);
+  expect(contactRect.y + contactRect.height).toBeLessThanOrEqual((await page.evaluate(() => innerHeight)));
   await expect(page.locator('#contact')).toContainText('광고 제휴 문의');
   await expect(page.locator('#contact')).toContainText('arcmangsk@naver.com');
   await expect(page.locator('#contact')).toContainText('메일 앱이 자동으로 열리지는 않습니다');
