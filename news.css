@@ -41,3 +41,4 @@
 .cal-chip.is-list{background:#e5f7fd;color:#1a7ea6}.cal-chip.is-list i{background:#3bbde8}
 .calendar-kinds label{padding:2px 8px;border-radius:99px}.calendar-kinds .k-demand{background:#eef3ff}.calendar-kinds .k-subscription{background:#ffeef6}.calendar-kinds .k-refund{background:#e6f8f1}.calendar-kinds .k-list{background:#e5f7fd}
 .cal-chip.is-est{opacity:.6;border:1px dashed currentColor}
+.calendar-kinds-top{margin:0 0 12px}.calendar-kinds .k-saved{background:#f3f6f3}

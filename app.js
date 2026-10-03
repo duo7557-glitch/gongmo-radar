@@ -183,7 +183,7 @@ function render() {
   $('#savedCount').textContent = saved.length; $('#demoWarning').hidden = !demoMode;
   $('#demoToggle').textContent = demoMode ? '실제 데이터 보기' : '예시 화면 보기'; $('#demoToggle').setAttribute('aria-pressed', String(demoMode));
   $('#calendarSpac').setAttribute('aria-pressed', String(includeSpac)); $('#calendarSpac').textContent = includeSpac ? '스팩 제외' : '스팩 포함';
-  $('#savedFilter').setAttribute('aria-pressed', String(savedOnly)); $('#savedFilter').textContent = savedOnly ? '★ 관심만 보기' : '☆ 관심만 보기';
+  $('#savedFilter').setAttribute('aria-pressed', String(savedOnly)); document.querySelector('#calendarSavedOnly').checked = savedOnly; $('#savedFilter').textContent = savedOnly ? '★ 관심만 보기' : '☆ 관심만 보기';
   const statusText = { loading: '공시 데이터를 불러오는 중', live: '공시 데이터 연결됨', error: '데이터를 불러오지 못했습니다. 새로고침해 주세요.', unconfigured: '공시 데이터 연결 준비중' };
   $('#dataStatus').textContent = demoMode ? '예시 모드 · 가상 기업과 점수' : statusText[dataState]; $('#dataStatus').dataset.state = demoMode ? 'demo' : dataState;
   const scored = monthly.filter(item => scoreOf(item) !== null && !['철회', '연기'].includes(statusOf(item)));
@@ -279,7 +279,7 @@ function renderCalendar(entries) {
   const grid = $('#calendarGrid');
   calendarEntries = entries;
   calendarKinds ||= loadCalendarKinds();
-  document.querySelectorAll('#calendarKinds input').forEach(input => { input.checked = calendarKinds.has(input.value); });
+  document.querySelectorAll('#calendarKinds input[value]').forEach(input => { input.checked = calendarKinds.has(input.value); });
   const [year, mon] = currentMonth.split('-').map(Number);
   const firstDow = new Date(Date.UTC(year, mon - 1, 1)).getUTCDay();
   const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
@@ -297,7 +297,7 @@ function renderCalendar(entries) {
   }).join('');
 }
 document.querySelector('#calendarKinds').addEventListener('change', () => {
-  calendarKinds = new Set([...document.querySelectorAll('#calendarKinds input:checked')].map(input => input.value));
+  calendarKinds = new Set([...document.querySelectorAll('#calendarKinds input[value]:checked')].map(input => input.value));
   try { localStorage.setItem('gongmo-radar-cal-kinds-v2', JSON.stringify([...calendarKinds])); } catch {}
   renderCalendar(calendarEntries);
 });
@@ -313,7 +313,8 @@ $('#todayMonth').addEventListener('click', () => { currentMonth = koreaDate().sl
 $('#stockSearch').addEventListener('input', render); $('#statusFilter').addEventListener('change', render); $('#sortFilter').addEventListener('change', render);
 $('#calendarSpac').addEventListener('click', () => { includeSpac = !includeSpac; store('gongmo-radar-spac', includeSpac); render(); });
 $('#quickFilter').addEventListener('click', event => { const button = event.target.closest('[data-quick]'); if (!button) return; quickFilter = button.dataset.quick; render(); });
-$('#savedFilter').addEventListener('click', () => { savedOnly = !savedOnly; render(); }); $('#savedNav').addEventListener('click', () => { savedOnly = true; render(); });
+$('#savedFilter').addEventListener('click', () => { savedOnly = !savedOnly; render(); });
+document.querySelector('#calendarSavedOnly').addEventListener('change', event => { savedOnly = event.target.checked; render(); }); $('#savedNav').addEventListener('click', () => { savedOnly = true; render(); });
 $('#demoToggle').addEventListener('click', () => { demoMode = !demoMode; render(); });
 $('#closeDialog').addEventListener('click', () => $('#detailDialog').close());
 document.addEventListener('click', event => {
