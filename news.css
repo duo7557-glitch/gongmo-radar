@@ -140,10 +140,3 @@
 
 #hero .hero-today small{font-size:11px;color:#9cc4ab;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hero .hero-today{display:flex;align-items:baseline;gap:6px;min-width:0}
-
-/* 거래일별 주가 추이 카드는 작게 */
-@media(min-width:1001px){
-  .split-right .price-chart-grid{gap:8px}
-  .split-right .price-chart-grid .chart-card{padding:8px 10px}
-  .split-right .price-chart-grid svg{max-height:84px;height:auto}
-}
