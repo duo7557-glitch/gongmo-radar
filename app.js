@@ -334,7 +334,6 @@ $('#chatForm').addEventListener('submit', async event => {
   } catch { $('#chatFeedback').textContent = '네트워크 연결을 확인하고 다시 보내 주세요.'; } finally { sending = false; $('#sendChat').disabled = false; }
 });
 $('#newMessages').addEventListener('click', () => { $('#messages').scrollTop = $('#messages').scrollHeight; $('#newMessages').hidden = true; });
-document.querySelector('.chat-prompts').addEventListener('click', event => { const button = event.target.closest('[data-prompt]'); if (!button) return; $('#chatInput').value = button.dataset.prompt; $('#chatInput').focus(); });
 $('#cancelReport').addEventListener('click', () => $('#reportDialog').close());
 $('#reportForm').addEventListener('submit', async event => {
   event.preventDefault(); if (!db || !reportId) return; const button = event.submitter; button.disabled = true;
