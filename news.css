@@ -90,3 +90,21 @@
 @media(max-width:1000px){.split-tabs{display:none}.split-right>section{display:block}}
 
 @media(min-width:1001px){:root{--sidebar-width:280px}}
+
+/* 히어로는 숨기고 캘린더를 맨 위에. 치킨값 계산은 닫기 전까지 떠 있는 패널 */
+#hero{padding:0 24px;min-height:0;height:52px;display:flex;align-items:center;justify-content:space-between;gap:16px;overflow:hidden}
+#hero .eyebrow{display:none}
+#hero h1{font-size:18px;line-height:1.2;margin:0;white-space:nowrap}
+#hero h1 br{display:none}
+#hero .hero-main{display:flex;align-items:center;gap:12px;min-width:0}
+#hero .hero-main>p,#hero .hero-main>a{margin:0}
+#hero .hero-main a,#hero .hero-main button{padding:6px 12px;font-size:12px;white-space:nowrap}
+#hero .hero-panel{padding:0;border:0;background:none;box-shadow:none}
+#hero .hero-stats{display:flex;align-items:center;gap:14px}
+#hero .hero-stats>div{display:flex;align-items:baseline;gap:6px}
+#hero .hero-stats span{font-size:11px}
+#hero .hero-stats b{font-size:14px}
+#small-lot:not(.is-open){display:none}
+.chicken-calc.is-open{display:block;position:fixed;right:24px;bottom:24px;width:340px;max-height:80vh;overflow:auto;z-index:70;background:#fff;border:1px solid #cfe3d3;border-radius:12px;box-shadow:0 18px 40px #0f2a1f33;padding:16px}
+.chicken-calc #chickenClose{position:absolute;top:10px;right:10px}
+@media(max-width:600px){.chicken-calc.is-open{left:12px;right:12px;width:auto;bottom:12px}}
