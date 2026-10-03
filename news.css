@@ -171,3 +171,7 @@
 #hero .hero-strip b{font-size:15px;color:#fff}
 #hero .hero-strip #lastUpdated{display:none}
 #calendar>.summary-strip,#actionRail{display:none}
+
+/* 새로고침·치킨값·예시 버튼과 알림 안내는 달력 머리글 위로 */
+#calendar>.data-toolbar{order:-8.6}
+#calendar>.reminder-tools{order:-8.5}
