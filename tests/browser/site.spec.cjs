@@ -93,7 +93,8 @@ test('footer links to readable policy and guide pages', async ({ page }) => {
   await expect(page.locator('#supportDialog')).toBeVisible();
   await expect(page.locator('#supportDialog')).toContainText('토스뱅크');
   await expect(page.locator('#supportAccount')).toHaveText('1000-0259-4445');
-  await expect(page.locator('#quickPaySupport')).toBeDisabled();
+  await expect(page.locator('#quickPaySupport')).toHaveAttribute('href', /^supertoss:\/\/send\?/);
+  await expect(page.locator('.support-qr')).toHaveAttribute('src', 'toss-support-qr.png');
   await expect(page.locator('#supportDialog')).toContainText('공모주 레이더의 운영 및 개선에 사용됩니다');
   await page.locator('#closeSupport').click();
   await expect(page.locator('#webStatus')).toHaveText('응답 중');
