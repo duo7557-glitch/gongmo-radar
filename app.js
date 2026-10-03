@@ -113,7 +113,8 @@ function render() {
   $('#pickGrid').innerHTML = picks.map((item, i) => {
     const signalCount = Object.values(item.source_payload?.score_signals || {}).filter(Boolean).length;
     const label = scoreOf(item) >= 80 ? 'HIGH SIGNAL' : scoreOf(item) >= 70 ? 'SIGNAL' : 'REFERENCE';
-    return `<article class="pick-card ${i === 0 ? 'featured' : ''}"><span class="tag">${demoMode ? 'SAMPLE' : label}</span><div class="score-pill">${scoreOf(item)}</div><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.reason)}</p><div class="signals">${item.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><small>${signalCount}/3 공개 지표로 산출</small><button class="card-detail" data-detail="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.name)} 분석 보기">↗</button></article>`;
+    const timing = item.subscription_end < today ? '청약 종료 후 참고용' : '청약 전 공개자료';
+    return `<article class="pick-card ${i === 0 ? 'featured' : ''}"><span class="tag">${demoMode ? 'SAMPLE' : label}</span><div class="score-pill">${scoreOf(item)}</div><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.reason)}</p><div class="signals">${item.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><small>${signalCount}/3 공개 지표 · ${timing}</small><button class="card-detail" data-detail="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.name)} 분석 보기">↗</button></article>`;
   }).join('') || `<div class="analysis-empty"><b>이번 달에는 아직 비교 점수를 계산할 만큼의 공시 지표가 없습니다.</b><p>${monthly.length}개 일정 중 ${measured}개에서 ${signalTotal}개 지표를 확인했습니다. 3개 지표 중 2개 이상이 확인되면 점수를 산출합니다. 상장 완료 종목은 발행실적보고서의 실제 확약 배정도 다시 확인합니다.</p></div>`;
 }
 function renderActionRail(monthly, active, closingSoon) {
