@@ -109,6 +109,21 @@ setInterval(checkIpoReminders, 30000);
 // 상세 창 핵심 체크리스트: 공시에서 자동으로 확인되는 숫자만 보여주고, 없으면 추측하지 않고 "확인 불가"로 표시한다.
 const fmtWon = n => Math.round(n).toLocaleString('ko-KR') + '원';
 const fmtEok = n => n >= 1e12 ? (n / 1e12).toFixed(2) + '조원' : Math.round(n / 1e8).toLocaleString('ko-KR') + '억원';
+// 자동 점수 계산 내역: 공개 공시 지표별 점수 × 가중치. 확인되지 않은 지표는 계산에서 빼고 그 사실을 적는다.
+function scoreBreakdown(item) {
+  const s = (item.source_payload || {}).score_signals || {}, score = scoreOf(item);
+  if (score === null) return '';
+  const parts = [
+    ['기관 수요예측', 45, s.demand_ratio && (s.demand_ratio.value >= 1000 ? 100 : s.demand_ratio.value >= 500 ? 85 : s.demand_ratio.value >= 200 ? 68 : s.demand_ratio.value >= 100 ? 52 : 35), s.demand_ratio && s.demand_ratio.value.toLocaleString('ko-KR') + ' : 1'],
+    ['의무보유확약', 30, s.lockup_rate && (s.lockup_rate.value >= 20 ? 100 : s.lockup_rate.value >= 10 ? 80 : s.lockup_rate.value >= 5 ? 60 : s.lockup_rate.value >= 1 ? 40 : 20), s.lockup_rate && s.lockup_rate.value + '%'],
+    ['상장 직후 유통물량', 25, s.float_rate && (s.float_rate.value <= 20 ? 100 : s.float_rate.value <= 30 ? 80 : s.float_rate.value <= 40 ? 60 : s.float_rate.value <= 50 ? 40 : 20), s.float_rate && s.float_rate.value + '%']
+  ];
+  const used = parts.filter(p => p[2] != null), coverage = used.reduce((sum, p) => sum + p[1], 0);
+  const rows = parts.map(([label, weight, points, value]) => points == null
+    ? `<div><dt>${label}</dt><dd><span class="check-unknown">공시에서 확인 안 됨 · 계산에서 제외</span></dd></div>`
+    : `<div><dt>${label}</dt><dd>${value} → ${points}점 × ${weight}%<small>${(points * weight / coverage).toFixed(1)}점 반영</small></dd></div>`).join('');
+  return '<section class="detail-checklist score-breakdown"><h3>점수 계산 내역</h3><p class="check-note">확인된 지표의 가중치(' + coverage + '%)로 다시 나눠 계산합니다. 투자 권유가 아니라 공개 지표의 비교 신호입니다.</p><dl>' + rows + '</dl><p class="check-note"><a href="#method">점수 기준 전체 보기 ↗</a></p></section>';
+}
 function checklistRows(item) {
   const p = item.source_payload || {}, s = p.score_signals || {}, beforeDemand = !p.final_terms_receipt_no;
   const unknown = why => '<span class="check-unknown">확인 불가' + (why ? ' · ' + why : '') + '</span>';
@@ -252,7 +267,7 @@ document.addEventListener('click', event => {
     selectIpoForCalculator(item);
     const dart = sourceUrl(item.source_dart_url, 'dart.fss.or.kr'), kind = sourceUrl(item.source_kind_url, 'kind.krx.co.kr');
     const canRemind = item.subscription_end && item.subscription_end >= today && !['철회', '연기'].includes(statusOf(item));
-    $('#dialogContent').innerHTML = `<p class="eyebrow"><span></span> ${demoMode ? 'SAMPLE ANALYSIS' : 'IPO OVERVIEW'}</p><h2 class="detail-title">${escapeHtml(item.name)} ${hotBadge(item)}</h2><p class="detail-sub">${escapeHtml(item.sector || '업종 확인중')} · ${escapeHtml(statusOf(item))} · ${scoreLabel(item)}</p>${!demoMode && canRemind ? `<button class="view-button reminder-button detail-reminder" data-reminder="${escapeHtml(item.id)}" aria-pressed="${reminderEnabled(item)}">${reminderEnabled(item) ? '🔔 청약 알림 설정됨' : '🔔 마감 전 알림 받기'}</button><p class="reminder-note">전날 18시·마감일 9시 알림 · 브라우저가 열려 있어야 합니다.</p>` : ''}<div class="detail-grid"><div><span>청약 기간</span><b>${escapeHtml(item.dates)}</b></div><div><span>공모가</span><b>${escapeHtml(item.price || '확인중')}</b></div><div><span>인수인 · 주관사</span><b>${escapeHtml(item.broker || '확인중')}</b></div>${hotReasons(item).length ? `<div><span>핫한 이유</span><b>${escapeHtml(hotReasons(item).join(' · '))}</b></div>` : ''}<div><span>분석 의견</span><b>${escapeHtml(item.reason || '기관 수요예측과 유통물량 확인 후 분석됩니다.')}</b></div></div>${demoMode ? '' : checklistRows(item)}<div class="source-links">${dart ? `<a href="${escapeHtml(dart)}" target="_blank" rel="noopener noreferrer">DART 원문 ↗</a>` : ''}${kind ? `<a href="${escapeHtml(kind)}" target="_blank" rel="noopener noreferrer">KIND 원문 ↗</a>` : ''}</div><p class="detail-caution">${demoMode ? '가상 기업의 예시 데이터입니다.' : '일정과 가격은 정정 공시로 변경될 수 있습니다. 공시상 청약기일이 일반 투자자 청약일과 일치하는지 원문에서 확인해 주세요.'} 분석 점수는 공개 지표의 비교 결과입니다.</p>`;
+    $('#dialogContent').innerHTML = `<p class="eyebrow"><span></span> ${demoMode ? 'SAMPLE ANALYSIS' : 'IPO OVERVIEW'}</p><h2 class="detail-title">${escapeHtml(item.name)} ${hotBadge(item)}</h2><p class="detail-sub">${escapeHtml(item.sector || '업종 확인중')} · ${escapeHtml(statusOf(item))} · ${scoreLabel(item)}</p>${!demoMode && canRemind ? `<button class="view-button reminder-button detail-reminder" data-reminder="${escapeHtml(item.id)}" aria-pressed="${reminderEnabled(item)}">${reminderEnabled(item) ? '🔔 청약 알림 설정됨' : '🔔 마감 전 알림 받기'}</button><p class="reminder-note">전날 18시·마감일 9시 알림 · 브라우저가 열려 있어야 합니다.</p>` : ''}<div class="detail-grid"><div><span>청약 기간</span><b>${escapeHtml(item.dates)}</b></div><div><span>공모가</span><b>${escapeHtml(item.price || '확인중')}</b></div><div><span>인수인 · 주관사</span><b>${escapeHtml(item.broker || '확인중')}</b></div>${hotReasons(item).length ? `<div><span>핫한 이유</span><b>${escapeHtml(hotReasons(item).join(' · '))}</b></div>` : ''}<div><span>분석 의견</span><b>${escapeHtml(item.reason || '기관 수요예측과 유통물량 확인 후 분석됩니다.')}</b></div></div>${demoMode ? '' : scoreBreakdown(item)}${demoMode ? '' : checklistRows(item)}<div class="source-links">${dart ? `<a href="${escapeHtml(dart)}" target="_blank" rel="noopener noreferrer">DART 원문 ↗</a>` : ''}${kind ? `<a href="${escapeHtml(kind)}" target="_blank" rel="noopener noreferrer">KIND 원문 ↗</a>` : ''}</div><p class="detail-caution">${demoMode ? '가상 기업의 예시 데이터입니다.' : '일정과 가격은 정정 공시로 변경될 수 있습니다. 공시상 청약기일이 일반 투자자 청약일과 일치하는지 원문에서 확인해 주세요.'} 분석 점수는 공개 지표의 비교 결과입니다.</p>`;
     const reminderNote = $('#dialogContent .reminder-note'); if (reminderNote) reminderNote.textContent = `${reminderSlots().map(slot => `${slot.offset ? '전날' : '마감일'} ${slot.time}`).join(' · ')} 알림 · 사이트가 브라우저에서 열려 있어야 합니다.`;
     const detailRows = $('#dialogContent .detail-grid');
     if (detailRows) {
@@ -359,10 +374,19 @@ setInterval(() => { if (!document.hidden && db) loadMessages().catch(() => {}); 
 setInterval(() => { if (!document.hidden && db) loadListings(); }, 300000);
 window.addEventListener('online', () => { loadListings(); if (db) loadMessages().catch(() => {}); });
 
+const chickenResult = document.querySelector('.chicken-result');
+const ttasangRow = document.createElement('div');
+ttasangRow.innerHTML = '<span>따상 가정 손익(청약 수수료 차감)</span><b id="miniTtasangProfitResult">—</b>';
+chickenResult.insertBefore(ttasangRow, $('#miniCalcNote'));
+const ttasangNote = document.createElement('p');
+ttasangNote.id = 'miniTtasangNote';
+ttasangNote.textContent = '전통적 따상 기준: 공모가의 2.6배 매도(+160%).';
+chickenResult.insertBefore(ttasangNote, $('#miniCalcNote'));
+document.querySelector('.chicken-caution').textContent = '따상은 전통적 가정(공모가 2배로 시초가 형성 후 +30%)입니다. 현행 신규상장일 가격범위는 공모가의 60~400%이며, 이 계산은 예측이 아닙니다. 매도 수수료·세금 제외, 배정·수익을 보장하지 않습니다.';
 function updateSmallLotEstimate() {
   const read = id => Math.max(0, Number(document.getElementById(id).value) || 0);
   if (read('miniIpoPrice') <= 0) {
-    $('#miniDepositResult').textContent = '가격 입력 필요'; $('#miniProfitResult').textContent = '계산 대기';
+    $('#miniDepositResult').textContent = '가격 입력 필요'; $('#miniProfitResult').textContent = '계산 대기'; $('#miniTtasangProfitResult').textContent = '계산 대기';
     $('#miniCalcNote').textContent = '공모가가 확인되면 공시 가격을 입력하거나, 희망 공모가 범위를 참고해 직접 입력해 주세요.';
     return;
   }
@@ -371,10 +395,14 @@ function updateSmallLotEstimate() {
   const allocatedShares = Math.floor(read('miniAllocated')), returnRate = Number(document.getElementById('miniReturnPct').value) || 0;
   const fee = read('miniFee'), deposit = Math.ceil(price * minimumShares * depositRate);
   const profit = allocatedShares ? price * allocatedShares * returnRate / 100 - fee : 0;
+  const ttasangProfit = allocatedShares ? price * allocatedShares * 1.6 - fee : 0;
   document.querySelector('.chicken-result div:nth-child(2) span').textContent = '청약 수수료 반영 손익(가정)';
   $('#miniDepositResult').textContent = fmtWon(deposit);
   $('#miniProfitResult').textContent = `${profit > 0 ? '+' : ''}${fmtWon(profit)}`;
   $('#miniProfitResult').classList.toggle('is-loss', profit < 0);
+  $('#miniTtasangProfitResult').textContent = `${ttasangProfit > 0 ? '+' : ''}${fmtWon(ttasangProfit)}`;
+  $('#miniTtasangProfitResult').classList.toggle('is-loss', ttasangProfit < 0);
+  $('#miniTtasangNote').textContent = `공모가 ${fmtWon(price)} → 가정 매도가 ${fmtWon(price * 2.6)} (2.6배, +160%) · 배정 ${allocatedShares.toLocaleString('ko-KR')}주 · 수수료 ${fmtWon(fee)} 차감`;
   $('#miniCalcNote').textContent = `최소 신청 ${minimumShares.toLocaleString('ko-KR')}주 · 배정 ${allocatedShares.toLocaleString('ko-KR')}주 가정 · 공모가 대비 ${returnRate}% 매도 · 수수료 ${fmtWon(fee)} 반영. 배정되면 증거금 외 잔금을 납부해야 합니다.`;
 }
 function selectIpoForCalculator(item) {
