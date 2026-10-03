@@ -139,11 +139,17 @@
     svg.addEventListener('blur', leave);
   }
 
+  const SPARK_PREVIEW = 3;
   function renderPriceChart(entries) {
     const grid = document.querySelector('#priceChart');
     if (!entries.length) { grid.innerHTML = '<p class="chart-empty">선택한 달·조건에 비교할 데이터가 없습니다.</p>'; return; }
     grid.innerHTML = entries.map(sparkCard).join('');
-    grid.querySelectorAll('.spark-card').forEach((card, i) => attachSparkHover(card, entries[i]));
+    grid.querySelectorAll('.spark-card').forEach((card, i) => { attachSparkHover(card, entries[i]); if (i >= SPARK_PREVIEW) card.classList.add('is-extra'); });
+    let more = grid.nextElementSibling?.classList?.contains('spark-more') ? grid.nextElementSibling : null;
+    if (!more) { more = document.createElement('button'); more.type = 'button'; more.className = 'view-button spark-more'; grid.after(more); more.addEventListener('click', () => { grid.classList.toggle('is-expanded'); more.textContent = grid.classList.contains('is-expanded') ? '접기' : more.dataset.label; }); }
+    more.hidden = entries.length <= SPARK_PREVIEW;
+    more.dataset.label = `더보기 (${entries.length - SPARK_PREVIEW}개)`;
+    if (!grid.classList.contains('is-expanded')) more.textContent = more.dataset.label;
   }
 
   // ranking.js가 Supabase에서 더 최신 시세를 받으면 미니 그래프를 다시 그린다.

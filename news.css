@@ -142,3 +142,4 @@
 #hero .hero-today{display:flex;align-items:baseline;gap:6px;min-width:0}
 .news-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
 .news-pager button:disabled{opacity:.4;cursor:default}
+.spark-card.is-extra{display:none}#priceChart.is-expanded .spark-card.is-extra{display:block}.spark-more{margin:8px 0 0}
