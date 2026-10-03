@@ -27,7 +27,7 @@ test('desktop: right-fixed chat, real/demo separation, search/save/modal and Sep
   await page.locator('#stockSearch').fill('한국투자'); await expect(page.locator('#ipoRows tr')).toHaveCount(1);
   await expect(page.locator('#ipoRows')).toContainText('메디큐브랩');
   await page.locator('#stockSearch').fill('');
-  await page.locator('[data-save="demo-0"]').click(); await expect(page.locator('#savedCount')).toHaveText('1');
+  await page.locator('[data-save="demo-0"]').first().click(); await expect(page.locator('#savedCount')).toHaveText('1');
   await page.locator('#savedFilter').click(); await expect(page.locator('#ipoRows tr')).toHaveCount(1);
   await page.evaluate(() => { window.PriceHistory = { ...window.PriceHistory, items: [{ name: '에코네트웍스', code: '123456', listedAt: '2026-10-20' }, ...window.PriceHistory.items] }; });
   await page.locator('#refreshData').click();
@@ -89,6 +89,9 @@ test('calculator shows traditional ttasang profit and chat has no suggestion chi
 test('footer links to readable policy and guide pages', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.site-footer a[href="policy/"]')).toHaveText('이용약관·개인정보 안내');
+  await expect(page.locator('.site-footer a[href="#contact"]')).toHaveText('문의·신고');
+  await expect(page.locator('#contact')).toContainText('arcmangsk@naver.com');
+  await expect(page.locator('#contact')).toContainText('메일 앱이 자동으로 열리지 않습니다');
   await page.locator('#openSupport').click();
   await expect(page.locator('#supportDialog')).toBeVisible();
   await expect(page.locator('#supportDialog')).toContainText('토스뱅크');
@@ -104,6 +107,7 @@ test('footer links to readable policy and guide pages', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '이용약관 및 개인정보 안내' })).toBeVisible();
   await expect(page.locator('#privacy')).toContainText('닉네임과 메시지 내용');
   await expect(page.locator('#support')).toContainText('기부금 영수증을 발급하지 않으며');
+  await expect(page.locator('#contact')).toContainText('arcmangsk@naver.com');
   await page.goto('/guide/');
   await expect(page).toHaveTitle(/이용 가이드/);
   await expect(page.getByRole('heading', { name: '월별 청약 캘린더' })).toBeVisible();

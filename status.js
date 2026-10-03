@@ -1,4 +1,6 @@
 (() => {
+  const contactLink = document.querySelector('.footer-links a[href^="mailto:"]');
+  if (contactLink) contactLink.href = '#contact';
   const support = document.querySelector('#supportDialog');
   document.querySelector('#openSupport')?.addEventListener('click', () => support?.showModal());
   document.querySelector('#closeSupport')?.addEventListener('click', () => support?.close());
