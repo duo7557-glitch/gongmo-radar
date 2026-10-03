@@ -1,6 +1,6 @@
 // Pure normalization + injectable HTTP layer, shared by local runner and Edge Function.
 // Bump when parsing rules change so previously imported rows are recomputed once.
-export const PARSER_VERSION = 4;
+export const PARSER_VERSION = 5;
 const OFFERING_FILING = /증권신고서.*(?:지분증권|증권예탁증권)/;
 export class DartError extends Error {
   constructor(status) { super(`OpenDART 오류 ${status}`); this.status = status; }
@@ -161,9 +161,10 @@ export async function collectOfferings({ client, unzip, now = new Date(), existi
       const summarized = new Set(groupRows(payload.group || [], '일반사항').map(row => row.rcept_no));
       // estkRs 요약은 [발행조건확정]·투자설명서·실적보고서·철회신고서를 반영하지 않고 마지막 증권신고서(정정 포함)
       // 기준으로 응답한다. 그래서 "최신 공시"를 추측하지 않고, 요약이 가리키는 신고서를 이 회사 이력에서 찾아 맞춘다.
-      let history = null;
+      // 백필 구간 밖(이후)에 나온 [발행조건확정]·철회도 보도록 회사 공시 이력은 항상 오늘까지 조회한다.
+      // 그래야 어떤 구간을 어떤 순서로 돌려도 확정 공모가가 희망가로 덮이지 않는다.
+      const history = await client.list({ corp_code: candidate.corp_code, bgn_de: historyBegin, end_de: todayStr, pblntf_ty: 'C' });
       if (!summarized.has(candidate.rcept_no)) {
-        history = await client.list({ corp_code: candidate.corp_code, bgn_de: historyBegin, end_de: todayStr, pblntf_ty: 'C' });
         const matched = history.filter(row => summarized.has(row.rcept_no) && OFFERING_FILING.test(row.report_nm || '')).sort((a, b) => b.rcept_no.localeCompare(a.rcept_no))[0];
         if (matched) report = matched;
       }
