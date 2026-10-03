@@ -4,3 +4,5 @@
 
 /* 상장일 실시간 차트는 2열 그리드에서도 전체 폭 */
 .week-live-grid > #live{grid-column:1/-1}
+/* 상장일 차트는 캔들이 잘 보이도록 높이 제한 해제 */
+#live .live-svg{max-height:none;height:auto}
