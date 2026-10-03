@@ -117,3 +117,11 @@
 #calendar>#hero .hero-main a{background:#173b2d;color:#fff}
 .calendar-calculator-grid{display:block}
 .calendar-results{min-width:0}
+
+/* 첫 화면: 캘린더 제목·월 이동·달력이 가장 먼저 보이도록 나머지는 뒤로 */
+#calendar{display:flex;flex-direction:column}
+#calendar>#hero{order:-10}
+#calendar>.section-heading{order:-9}
+#calendar>.calendar-head{order:-8}
+#calendar>.calendar-calculator-grid{order:-7}
+#calendar>.week-live-grid{order:1}
