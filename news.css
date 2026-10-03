@@ -122,10 +122,10 @@
 #calendar{display:flex;flex-direction:column}
 #calendar>#hero{order:-10}
 #calendar>.section-heading{order:-9}
-#calendar>.calendar-head{order:-8}
-#calendar>.filter-bar{order:-7}
-#calendar>.result-bar{order:-6}
-#calendar>.calendar-calculator-grid{order:-5}
+#calendar>.calendar-head{order:-6}
+#calendar>.filter-bar{order:-5}
+#calendar>.result-bar{order:-4}
+#calendar>.calendar-calculator-grid{order:-3}
 #calendar>.week-live-grid{order:1}
 
 /* 오른쪽 열이 좁을 때: 수익률 TOP 10은 한 줄로, 상장 성과 표·차트는 칸 안에 맞춤 */
@@ -173,8 +173,8 @@
 #calendar>.summary-strip,#actionRail{display:none}
 
 /* 새로고침·치킨값·예시 버튼과 알림 안내는 달력 머리글 위로 */
-#calendar>.data-toolbar{order:-8.6}
-#calendar>.reminder-tools{order:-8.5}
+#calendar>.data-toolbar{order:-8}
+#calendar>.reminder-tools{order:-7}
 
 /* 히어로가 캘린더 머리글로 옮겨져 밝은 배경이므로 요약 글자색을 진하게 */
 #calendar>#hero .hero-strip span{color:#5f7568}
