@@ -74,11 +74,19 @@
 
 /* 데스크톱: 왼쪽 절반은 캘린더, 오른쪽 절반은 상장 성과·종목토론·뉴스·수익률 TOP10. 채팅은 항상 오른쪽 끝 */
 @media(min-width:1001px){
-  main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:22px;align-items:start}
+  main{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,4fr);column-gap:22px;align-items:start}
   main>*{grid-column:1/-1;min-width:0}
   main>#calendar{grid-column:1}
   main>#calendar .week-live-grid{grid-template-columns:minmax(0,1fr)}
-  main>.split-right{grid-column:2;display:flex;flex-direction:column;gap:22px;min-width:0}
-  main>.split-right>section{margin:0}
+  main>.split-right{grid-column:2;display:flex;flex-direction:column;gap:14px;min-width:0}
+  main>.split-right>section{display:none;margin:0}
+  .split-right[data-view="performance"]>#performance,.split-right[data-view="board"]>#board,.split-right[data-view="news"]>#news,.split-right[data-view="ranking"]>#ranking{display:block}
+  .split-tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .split-tabs button{font:700 12px Manrope,sans-serif;border:1px solid #cfe3d3;background:#fff;color:#4c5f54;border-radius:99px;padding:6px 12px;cursor:pointer}
+  .split-tabs button[aria-pressed="true"]{background:#173b2d;color:#fff;border-color:#173b2d}
   main>#community{grid-column:auto}
 }
+
+@media(max-width:1000px){.split-tabs{display:none}.split-right>section{display:block}}
+
+@media(min-width:1001px){:root{--sidebar-width:280px}}
