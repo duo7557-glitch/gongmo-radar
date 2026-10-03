@@ -100,18 +100,24 @@
 
     const W = Math.max(320, Math.round($('#liveChart').clientWidth || 900)), H = 300, padL = 64, padR = 16, padT = 14, padB = 26;
     const values = [...closes, ...(offer ? [offer] : [])];
-    const min = Math.min(...values, low) * 0.995, max = Math.max(...values, high) * 1.005;
+    const min = Math.min(...values, ...bars.map(b => b[3]), low) * 0.995, max = Math.max(...values, ...bars.map(b => b[2]), high) * 1.005;
     const minutes = t => (Number(t.slice(0, 2)) - 9) * 60 + Number(t.slice(2));
     const x = t => padL + Math.min(minutes(t), 390) / 390 * (W - padL - padR);
     const y = v => padT + (max - v) / (max - min) * (H - padT - padB);
-    const points = bars.map(b => `${x(b[0]).toFixed(1)},${y(b[4]).toFixed(1)}`).join(' ');
+    // 캔들: 1분봉 하나당 몸통(시가~종가)과 꼬리(고가~저가). 상승은 빨강, 하락은 파랑(한국 증시 표기).
+    const slot = (W - padL - padR) / 390, bodyW = Math.max(1, slot * 0.7);
+    const candles = bars.map(b => {
+      const cx = x(b[0]), up = b[4] >= b[1], c = up ? POSITIVE : NEGATIVE;
+      const top = y(Math.max(b[1], b[4])), bottom = y(Math.min(b[1], b[4]));
+      return `<line x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${y(b[2]).toFixed(1)}" y2="${y(b[3]).toFixed(1)}" stroke="${c}" stroke-width="1"></line><rect x="${(cx - bodyW / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${bodyW.toFixed(1)}" height="${Math.max(1, bottom - top).toFixed(1)}" fill="${c}"></rect>`;
+    }).join('');
     const ticks = Array.from({ length: 5 }, (_, i) => min + (max - min) * i / 4);
     const hours = ['0900', '1000', '1100', '1200', '1300', '1400', '1500', '1530'];
     $('#liveChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="live-svg" role="img" aria-label="${escape(selected.name)} 분 단위 주가, 현재 ${won(last)}">` +
       ticks.map(v => `<line x1="${padL}" x2="${W - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="live-grid"></line><text x="${padL - 8}" y="${(y(v) + 4).toFixed(1)}" class="live-axis" text-anchor="end">${Math.round(v).toLocaleString('ko-KR')}</text>`).join('') +
       hours.map(t => `<text x="${x(t).toFixed(1)}" y="${H - 6}" class="live-axis" text-anchor="middle">${t.slice(0, 2)}:${t.slice(2)}</text>`).join('') +
       (offer ? `<line x1="${padL}" x2="${W - padR}" y1="${y(offer).toFixed(1)}" y2="${y(offer).toFixed(1)}" class="live-offer"></line><text x="${W - padR - 4}" y="${(y(offer) - 6).toFixed(1)}" class="live-axis live-offer-label" text-anchor="end">공모가 ${won(offer)}</text>` : '') +
-      `<polyline points="${points}" class="live-line" style="stroke:${color}"></polyline><circle cx="${x(bars.at(-1)[0]).toFixed(1)}" cy="${y(last).toFixed(1)}" r="4.5" style="fill:${color};stroke:#fff;stroke-width:2"></circle>` +
+      `<g class="live-candles">${candles}</g>` +
       `<line class="live-cross" y1="${padT}" y2="${H - padB}" hidden></line><rect class="live-hit" x="${padL}" y="${padT}" width="${W - padL - padR}" height="${H - padT - padB}"></rect></svg><div class="live-tip" hidden></div>`;
     $('#liveCaption').textContent = (data.note || '') + (isListingDay && offer ? `상장일 가격 범위: ${won(offer * 0.6)} ~ ${won(offer * 4)} (공모가 60~400%, 호가단위 반영 전). ` : '') + '시세: 네이버 금융 분 단위(정규장). 회색 선은 공모가입니다. 매수·매도 권유가 아닙니다.';
     wireHover(x, y, W, H, offer);
