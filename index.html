@@ -110,7 +110,7 @@
     tabs.forEach(b => b.addEventListener('click', () => show(b.dataset.target)));
     const fromHash = () => { const hash = location.hash.slice(1); const t = [...tabs].map(b => b.dataset.target).find(id => hash === id); if (t) show(t); };
     window.addEventListener('hashchange', fromHash);
-    show(''); fromHash();
+    show('performance'); fromHash();
   })();
   </script>
 </body>
