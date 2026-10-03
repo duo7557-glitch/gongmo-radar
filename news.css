@@ -160,3 +160,12 @@
 #hero .hero-card-date{background:#173b2d;color:#e4f7a0}
 #hero .hero-card-body b{color:#173b2d;font-size:14px}
 #hero .hero-card-body small{color:#3f6b52;font-size:11px}
+
+/* 히어로: 요약 수치(예정·평균 점수·가까운 청약)와 오늘 청약 카드만. 아래 중복 요약·안내 카드는 숨김 */
+#hero .hero-panel{display:none}
+#hero .hero-strip{display:flex;gap:18px;align-items:center;flex:none}
+#hero .hero-strip>div{display:flex;flex-direction:column;gap:2px;background:none;border:0;padding:0;color:#fff}
+#hero .hero-strip span{font-size:10px;color:#9cc4ab}
+#hero .hero-strip b{font-size:15px;color:#fff}
+#hero .hero-strip #lastUpdated{display:none}
+#calendar>.summary-strip,#actionRail{display:none}
