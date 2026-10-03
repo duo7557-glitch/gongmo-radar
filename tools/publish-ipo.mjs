@@ -44,9 +44,13 @@ try {
   const result = await collectOfferings({ client, unzip: unzipSync, existing, range, knownListings });
 
   for (const listing of result.listings) {
-    const previous = existing.find(row => row.source_key === listing.source_key);
-    listing.sector = previous?.sector || await sectorFor(client, listing.dart_corp_code).catch(() => '');
     await rest('ipo_listings?on_conflict=source_key', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify(listing) });
+  }
+
+  // 업종은 공시 내용과 무관하므로, 아직 비어 있는 종목만 채운다.
+  for (const row of existing.filter(row => !row.sector && row.dart_corp_code)) {
+    const sector = await sectorFor(client, row.dart_corp_code).catch(() => '');
+    if (sector) await rest('ipo_listings?source_key=eq.' + encodeURIComponent(row.source_key), { method: 'PATCH', body: JSON.stringify({ sector }) });
   }
 
   const summary = { scanned: result.scanned, updated: result.listings.length, review: result.review, range: result.range };
