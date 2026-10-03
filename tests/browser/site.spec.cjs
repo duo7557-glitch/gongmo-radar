@@ -64,3 +64,12 @@ test('mobile: page fits viewport and chat remains reachable below the calendar',
   await expect(page.locator('#chatInput')).toBeVisible();
   await page.screenshot({ path: 'test-results/mobile-chat.png' });
 });
+
+test('calculator shows traditional ttasang profit and chat has no suggestion chips', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#miniTtasangProfitResult')).toHaveText('+30,000원');
+  await expect(page.locator('#miniTtasangNote')).toContainText('52,000원');
+  await page.locator('#miniAllocated').fill('2');
+  await expect(page.locator('#miniTtasangProfitResult')).toHaveText('+62,000원');
+  await expect(page.locator('.chat-prompts')).toHaveCount(0);
+});
