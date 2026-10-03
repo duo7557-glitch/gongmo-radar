@@ -43,3 +43,21 @@
 .cal-chip.is-est{opacity:.6;border:1px dashed currentColor}
 .calendar-kinds-top{margin:0 0 12px}.calendar-kinds .k-saved{background:#f3f6f3}
 .cal-row{display:flex;align-items:center;gap:1px;min-width:0}.cal-row .cal-chip{flex:1;min-width:0}.cal-star{border:0;background:none;color:#c3ccc6;font-size:11px;line-height:1;padding:2px 2px;cursor:pointer;flex:none}.cal-star.is-saved{color:#f2b600}
+
+/* 모바일: 칩은 색 배지만 보이고 종목명은 누르면 상세에서 확인 */
+@media(max-width:720px){
+  #calendarView{overflow:hidden}
+  .calendar-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
+  .calendar-dow span{font-size:10px;padding:6px 0}
+  .calendar-cell{min-height:70px;padding:3px 2px;min-width:0;overflow:hidden}
+  .calendar-date{font-size:10px}
+  .calendar-items{gap:2px;min-width:0}
+  .cal-row{gap:0}
+  .cal-row .cal-chip{padding:0;background:none!important;justify-content:center;width:auto;flex:none}
+  .cal-row .cal-chip .cal-name{display:none}
+  .cal-row .cal-chip i{width:16px;height:16px;font-size:9px}
+  .cal-star{display:none}
+  .calendar-more{font-size:9px}
+  .calendar-kinds{gap:6px 10px;font-size:11px}
+  .calendar-kinds label{padding:2px 6px}
+}

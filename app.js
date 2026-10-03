@@ -20,7 +20,8 @@ const storedReminderSchedule = readStored('gongmo-radar-reminder-schedule', {});
 const reminderSchedule = Object.fromEntries(Object.entries(defaultReminderSchedule).map(([key, value]) => [key, { ...value, ...(storedReminderSchedule?.[key] || {}) }]));
 let includeSpac = readStored('gongmo-radar-spac', false) === true;
 const isSpac = item => item.sector === 'SPAC' || /스팩|SPAC|기업인수목적/i.test(item.name || '');
-let viewMode = readStored('gongmo-radar-view', 'list'); if (!['list', 'calendar'].includes(viewMode)) viewMode = 'list';
+const defaultView = window.matchMedia('(max-width: 720px)').matches ? 'calendar' : 'list';
+let viewMode = readStored('gongmo-radar-view', defaultView); if (!['list', 'calendar'].includes(viewMode)) viewMode = defaultView;
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const dateLabel = value => value ? value.slice(5).replace('-', '. ') : '확인중';
 const monthText = month => `${month.slice(0, 4)}년 ${Number(month.slice(5))}월`;
@@ -292,7 +293,7 @@ function renderCalendar(entries) {
     const chips = shown.map(({ kind, item, estimated }) => {
       const meta = CALENDAR_KINDS.find(k => k[0] === kind);
       const isSaved = saved.includes(String(item.id));
-      return `<div class="cal-row"><button class="cal-chip is-${kind}${estimated ? ' is-est' : ''}" data-detail="${escapeHtml(item.id)}" title="${escapeHtml(item.name + ' · ' + meta[1] + (estimated ? ' (예상)' : ''))}"><i>${meta[2]}</i>${escapeHtml(item.name)}</button><button class="cal-star${isSaved ? ' is-saved' : ''}" data-save="${escapeHtml(item.id)}" aria-pressed="${isSaved}" aria-label="${escapeHtml(item.name)} 관심 등록">★</button></div>`;
+      return `<div class="cal-row"><button class="cal-chip is-${kind}${estimated ? ' is-est' : ''}" data-detail="${escapeHtml(item.id)}" title="${escapeHtml(item.name + ' · ' + meta[1] + (estimated ? ' (예상)' : ''))}"><i>${meta[2]}</i><span class="cal-name">${escapeHtml(item.name)}</span></button><button class="cal-star${isSaved ? ' is-saved' : ''}" data-save="${escapeHtml(item.id)}" aria-pressed="${isSaved}" aria-label="${escapeHtml(item.name)} 관심 등록">★</button></div>`;
     }).join('');
     return `<div class="calendar-cell${day === today ? ' is-today' : ''}"><span class="calendar-date">${Number(day.slice(8))}</span><div class="calendar-items">${chips}${events.length > shown.length ? `<span class="calendar-more">+${events.length - shown.length}개 더</span>` : ''}</div></div>`;
   }).join('');
@@ -303,11 +304,11 @@ document.querySelector('#calendarKinds').addEventListener('change', () => {
   renderCalendar(calendarEntries);
 });
 function setViewMode(mode) {
-  viewMode = mode; store('gongmo-radar-view', mode);
+  viewMode = mode;
   $('#listView').hidden = mode !== 'list'; $('#calendarView').hidden = mode !== 'calendar';
   document.querySelectorAll('#viewSwitch button').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.view === mode)));
 }
-$('#viewSwitch').addEventListener('click', event => { const btn = event.target.closest('[data-view]'); if (btn) setViewMode(btn.dataset.view); });
+$('#viewSwitch').addEventListener('click', event => { const btn = event.target.closest('[data-view]'); if (btn) { setViewMode(btn.dataset.view); store('gongmo-radar-view', viewMode); } });
 function changeMonth(delta) { const date = new Date(`${currentMonth}-01T00:00:00Z`); date.setUTCMonth(date.getUTCMonth() + delta); currentMonth = date.toISOString().slice(0, 7); render(); }
 $('#prevMonth').addEventListener('click', () => changeMonth(-1)); $('#nextMonth').addEventListener('click', () => changeMonth(1));
 $('#todayMonth').addEventListener('click', () => { currentMonth = koreaDate().slice(0, 7); render(); });
