@@ -1,6 +1,11 @@
 name: Price history
 
 on:
+  push:
+    paths:
+      - 'tools/price-history.mjs'
+      - 'tools/reconcile-ipo-prices.mjs'
+      - '.github/workflows/price-history.yml'
   schedule:
     # 평일 장 마감 후 두 번(한 번 실패해도 다시 갱신): UTC 07:30/10:30 = 한국시간 16:30/19:30
     - cron: '30 7,10 * * 1-5'
@@ -16,6 +21,10 @@ jobs:
         with:
           node-version: 20
       - run: node tools/price-history.mjs
+        env:
+          SUPABASE_URL: https://xwclwdxerhxrjmpexzga.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - run: node tools/reconcile-ipo-prices.mjs
         env:
           SUPABASE_URL: https://xwclwdxerhxrjmpexzga.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
