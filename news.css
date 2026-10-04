@@ -180,3 +180,15 @@
 /* 히어로가 캘린더 머리글로 옮겨져 밝은 배경이므로 요약 글자색을 진하게 */
 #calendar>#hero .hero-strip span{color:#5f7568}
 #calendar>#hero .hero-strip b{color:#173b2d}
+
+/* 히어로 강조 글자: 밝은 배경에서 잘 보이는 진초록 */
+#calendar>#hero h1 em{color:#1f6842}
+/* 모바일: 오늘 청약 카드는 가로로 작게 */
+@media(max-width:720px){
+  #hero{flex-wrap:wrap;gap:8px}
+  #hero .hero-cards{flex:1 1 100%;justify-content:flex-start;padding:0;gap:6px}
+  #hero .hero-card{padding:5px 8px;gap:6px;max-width:100%}
+  #hero .hero-card-body b{font-size:12px}
+  #hero .hero-card-body small{font-size:9px}
+  #hero .hero-card-date{font-size:10px;padding:3px 5px}
+}
