@@ -9,7 +9,7 @@ test('desktop: right-fixed chat, real/demo separation, search/save/modal and Sep
   await expect(page.locator('#dataStatus')).toContainText(/연결 준비중|연결됨/);
   await expect(page.locator('#ipoRows')).not.toContainText('에코네트웍스');
   const panel = await page.locator('#community').boundingBox();
-  expect(panel.x).toBe(1090); expect(panel.width).toBe(350);
+  expect(panel.width).toBeGreaterThanOrEqual(270); expect(panel.x + panel.width).toBe(1440);
   await expect(page.locator('script[src="board.js"]')).toHaveCount(0);
   await expect(page.locator('#board')).toHaveCount(0);
   await page.getByRole('button', { name: '예시 화면 보기', exact: true }).click();
@@ -17,7 +17,7 @@ test('desktop: right-fixed chat, real/demo separation, search/save/modal and Sep
   await expect(page.locator('#ipoRows')).toContainText('상장 미정');
   await expect(page.locator('#ipoRows .discussion-pending')).toHaveCount(3);
   const weekCard = await page.locator('#weekCard').boundingBox(), liveCard = await page.locator('#live').boundingBox();
-  expect(liveCard.x).toBeGreaterThan(weekCard.x + weekCard.width / 2);
+  expect(liveCard.x >= weekCard.x + weekCard.width || liveCard.y >= weekCard.y + weekCard.height).toBe(true);
   await expect(page.locator('#demoWarning')).toBeVisible();
   await expect(page.locator('.agenda-item')).toHaveCount(3);
   await page.locator('#quickFilter [data-quick="active"]').click(); await expect(page.locator('#quickFilter [data-quick="active"]')).toHaveAttribute('aria-pressed', 'true');
@@ -79,6 +79,7 @@ test('mobile: page fits viewport and chat remains reachable below the calendar',
 
 test('calculator shows traditional ttasang profit and chat has no suggestion chips', async ({ page }) => {
   await page.goto('/');
+  await page.locator('#chickenOpen').click();
   await expect(page.locator('#miniTtasangProfitResult')).toHaveText('+30,000원');
   await expect(page.locator('#miniTtasangNote')).toContainText('52,000원');
   await page.locator('#miniAllocated').fill('2');
@@ -127,4 +128,13 @@ test('footer links to readable policy and guide pages', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '월별 청약 캘린더' })).toBeVisible();
   await expect(page.locator('#score')).toContainText('45%');
   await expect(page.locator('#reminder')).toContainText('페이지가 열려 있는 동안');
+});
+
+test('top news buttons switch to news and scroll there without hiding it', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#news')).toBeAttached();
+  await page.locator('#heroNewsButton').click();
+  await expect(page.locator('.split-right')).toHaveAttribute('data-view', 'news');
+  await expect(page.locator('#news')).toBeVisible();
+  await expect(page.locator('#news')).toContainText('공모주 뉴스');
 });

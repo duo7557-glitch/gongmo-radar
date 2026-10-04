@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Gowun+Dodum&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="workspace.css?v=20261004-footer-contact-v5" />
+  <link rel="stylesheet" href="workspace.css?v=20261004-news-button-v6" />
   <link rel="stylesheet" href="chat.css" />
   <link rel="stylesheet" href="small-lot.css" />
   <link rel="stylesheet" href="calendar-embed.css" />
@@ -18,7 +18,7 @@
 <body>
   <header class="topbar">
     <a class="brand" href="#top" aria-label="공모주 레이더 홈"><span class="brand-mark">G</span>공모주 <b>레이더</b></a>
-    <nav><a href="#calendar">청약 캘린더</a><a href="#live">상장일 실시간</a><a href="#performance">상장 성과</a><a href="#ranking">수익률 TOP 10</a><a href="#picks">이번 달 분석</a><a href="#community">라운지</a></nav>
+    <nav><a href="#calendar">청약 캘린더</a><a href="#live">상장일 실시간</a><a href="#performance">상장 성과</a><a href="#ranking">수익률 TOP 10</a><a href="#picks">이번 달 분석</a><button class="top-news-button" id="topNewsButton" type="button">공모주 뉴스</button><a href="#community">라운지</a></nav>
     <a class="outline-button" href="#calendar" id="savedNav">관심 공모주 <span id="savedCount">0</span></a>
   </header>
 
@@ -30,7 +30,7 @@
       <div class="hero-main">
         <p class="eyebrow"><span></span> IPO intelligence, simplified</p>
         <h1>이번 달 공모주,<br /><em>일정</em>부터 확인하세요.</h1>
-        <div class="hero-actions"><a class="primary-button" href="#calendar" id="calendarCta">이번 달 일정 보기 <span>→</span></a></div>
+        <div class="hero-actions"><a class="primary-button" href="#calendar" id="calendarCta">이번 달 일정 보기 <span>→</span></a><button class="hero-news-button" id="heroNewsButton" type="button">공모주 뉴스 보기 ↗</button></div>
       </div>
       <div class="hero-strip"><div><span>예정 · 진행중</span><b id="upcomingCount">—</b></div><div><span>평균 분석 점수</span><b id="avgScore">—</b></div><div><span>가장 가까운 청약</span><b id="nextDate">—</b></div><p id="lastUpdated">공시 기준으로 갱신합니다.</p></div>
       <div class="hero-cards" id="heroTodayCards" aria-label="오늘 청약 중인 종목"></div>
@@ -116,6 +116,8 @@
     const tabs = column.querySelectorAll('.split-tabs button');
     const show = target => { column.dataset.view = target || ''; tabs.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.target === target))); };
     tabs.forEach(b => b.addEventListener('click', () => show(b.dataset.target)));
+    const openNews = () => { show('news'); document.querySelector('#news')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    document.querySelectorAll('#topNewsButton, #heroNewsButton').forEach(button => button.addEventListener('click', openNews));
     const fromHash = () => { const hash = location.hash.slice(1); const t = [...tabs].map(b => b.dataset.target).find(id => hash === id); if (t) show(t); };
     window.addEventListener('hashchange', fromHash);
     show('performance'); fromHash();
