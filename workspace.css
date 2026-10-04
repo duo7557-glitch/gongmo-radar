@@ -105,3 +105,7 @@ dialog#detailDialog{max-height:88vh;overflow:auto}.detail-checklist{margin-top:1
 .site-footer .footer-contact-button{padding:0;border:0;background:none;color:#d1ddd4;font:inherit;font-size:10px;cursor:pointer;white-space:nowrap}.site-footer .footer-contact-button:hover{color:var(--lime)}
 .topbar nav .top-news-button{padding:7px 11px;border:1px solid #b9d8c1;border-radius:99px;background:#f3faf4;color:#1d6e4a;font:inherit;font-size:12px;white-space:nowrap;cursor:pointer}.topbar nav .top-news-button:hover{background:#e3f2e5}.hero-news-button{padding:9px 12px;border:1px solid #668573;border-radius:5px;background:transparent;color:#f3faf4;font:600 12px Manrope,sans-serif;cursor:pointer}.hero-news-button:hover{border-color:var(--lime);color:var(--lime)}
 @media(max-width:1150px){.topbar nav .top-news-button{display:none}}
+.topbar nav .top-news-button{padding:0;border:0;border-radius:0;background:transparent;color:inherit;font:inherit;line-height:inherit}.topbar nav .top-news-button:hover{background:transparent;color:#1e8a58}
+#calendar>#hero .hero-strip span{color:#45594c}
+#calendar>#hero .hero-news-button{border-color:#173b2d;background:#173b2d;color:#fff}
+#calendar>#hero .hero-news-button:hover{border-color:#285a40;background:#285a40;color:#fff}
