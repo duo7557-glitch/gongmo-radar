@@ -39,6 +39,7 @@ test('desktop: right-fixed chat, real/demo separation, search/save/modal and Sep
   await page.locator('#closeDialog').click();
   await page.locator('#savedFilter').click(); await page.locator('#nextMonth').click(); await expect(page.locator('#heroMonth')).toContainText('11월');
   await page.locator('#demoToggle').click(); await expect(page.locator('#ipoRows')).not.toContainText('에코네트웍스');
+  await page.locator('#performancePrev').click();
   await expect(page.locator('#performanceRows tr')).toHaveCount(6); await expect(page.locator('#performanceRows')).toContainText('5거래일 대기');
   await page.locator('#includeSpac').click(); await expect(page.locator('#performanceRows tr')).toHaveCount(9);
   await page.locator('#includeSpac').click();
@@ -68,7 +69,7 @@ test('mobile: page fits viewport and chat remains reachable below the calendar',
   await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/');
   const widths = await page.evaluate(() => ({ body: document.documentElement.scrollWidth, viewport: innerWidth }));
   expect(widths.body).toBeLessThanOrEqual(widths.viewport);
-  await page.locator('#performancePrev').click();
+  await page.locator('#performancePrev').click(); await page.locator('#performancePrev').click();
   await expect(page.locator('#performanceRows')).toContainText('해치텍');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.locator('#community').scrollIntoViewIfNeeded();
@@ -159,4 +160,31 @@ test('news search filters IPO headlines and shows a clear no-results message', a
   await expect(page.locator('#newsList')).toContainText('검색 결과가 없습니다');
   await page.locator('#newsSearch').fill('');
   await expect(page.locator('#newsList .news-item')).toHaveCount(2);
+});
+
+test('performance month advances from fresh IPO price data and the ad placeholder is omitted', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.ad-slot')).toHaveCount(0);
+  await page.evaluate(() => {
+    window.PriceHistory = { items: [{ name: '자동 갱신 테스트 종목', code: '990001', listedAt: '2030-01-07', offerPrice: 1000, spac: false, days: [
+      ['2030-01-07', 1000, 1100, 900, 1050, 10],
+      ['2030-01-08', 1050, 1150, 1000, 1100, 10],
+      ['2030-01-09', 1100, 1200, 1050, 1150, 10],
+      ['2030-01-10', 1150, 1250, 1100, 1200, 10],
+      ['2030-01-11', 1200, 1300, 1150, 1250, 10]
+    ] }], daysFor: () => null };
+    window.dispatchEvent(new CustomEvent('gongmo:price-history'));
+  });
+  await expect(page.locator('#performance h2')).toHaveText('2030년 1월, 상장 후 성과');
+  await expect(page.locator('#performanceRows')).toContainText('자동 갱신 테스트 종목');
+  await expect(page.locator('#performanceRows')).toContainText('+25.0%');
+});
+
+test('public data toolbar warns when its last successful sync is stale', async ({ page }) => {
+  await page.route('**/config.js', route => route.fulfill({ contentType: 'text/javascript', body: 'window.GONGMO_CONFIG = {supabaseUrl: "https://ops-test.supabase.co", supabasePublishableKey: "test-public-key"};' }));
+  await page.route('**/rest/v1/ipo_listings*', route => route.fulfill({ contentType: 'application/json', body: '[]' }));
+  await page.route('**/rest/v1/rpc/public_ipo_sync_status*', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ last_finished_at: '2000-01-01T00:00:00Z', last_status: 'success' }]) }));
+  await page.goto('/');
+  await expect(page.locator('#ipoFreshness')).toContainText('갱신 지연');
+  await expect(page.locator('#ipoFreshness')).toHaveAttribute('data-state', 'warning');
 });

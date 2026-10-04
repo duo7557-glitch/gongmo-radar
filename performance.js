@@ -1,9 +1,36 @@
 (function () {
-  const datasets = { ...window.GONGMO_PERFORMANCE_MONTHS };
-  if (window.GONGMO_PERFORMANCE) datasets[window.GONGMO_PERFORMANCE.month] = window.GONGMO_PERFORMANCE;
-  const months = Object.keys(datasets).sort().reverse();
+  function autoDatasets() {
+    const grouped = {};
+    for (const source of window.PriceHistory?.items || []) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(source.listedAt || '') || !(source.offerPrice > 0) || !Array.isArray(source.days) || !source.days.length) continue;
+      const month = source.listedAt.slice(0, 7);
+      const days = source.days.map(day => Array.isArray(day) ? { date: day[0], open: day[1], high: day[2], low: day[3], close: day[4], volume: day[5] || 0 } : day);
+      if (!grouped[month]) grouped[month] = { month, asOf: '', note: 'KIND 상장 정보·공개 일별 시세로 자동 계산했습니다. 수수료·세금 전.', items: [] };
+      grouped[month].items.push({ ...source, days, listingSource: 'https://kind.krx.co.kr/listinvstg/listingcompany.do?method=searchListingTypeMain', priceSource: `https://stock.naver.com/domestic/stock/${encodeURIComponent(source.code)}/price` });
+      const latest = days.at(-1)?.date;
+      if (latest && latest > grouped[month].asOf) grouped[month].asOf = latest;
+    }
+    return grouped;
+  }
+  const snapshots = { ...window.GONGMO_PERFORMANCE_MONTHS };
+  if (window.GONGMO_PERFORMANCE) snapshots[window.GONGMO_PERFORMANCE.month] = window.GONGMO_PERFORMANCE;
+  const datasets = autoDatasets();
+  for (const [month, snapshot] of Object.entries(snapshots)) {
+    const automatic = datasets[month];
+    if (!automatic || snapshot.asOf >= automatic.asOf || automatic.items.length < snapshot.items.length) datasets[month] = snapshot;
+  }
+  let months = Object.keys(datasets).sort().reverse();
   if (!months.length) return;
   let selectedMonth = months[0];
+  function refreshAutoDatasets() {
+    const previousLatest = months[0];
+    for (const [month, automatic] of Object.entries(autoDatasets())) {
+      const existing = datasets[month];
+      if (!existing || (automatic.asOf > existing.asOf && automatic.items.length >= existing.items.length)) datasets[month] = automatic;
+    }
+    months = Object.keys(datasets).sort().reverse();
+    if (selectedMonth === previousLatest) selectedMonth = months[0];
+  }
   const monthLabel = month => `${month.slice(0, 4)}년 ${Number(month.slice(5))}월`;
   const heading = document.querySelector('#performance .section-heading');
   const controls = document.createElement('div');
@@ -153,7 +180,7 @@
   }
 
   // ranking.js가 Supabase에서 더 최신 시세를 받으면 미니 그래프를 다시 그린다.
-  window.addEventListener('gongmo:price-history', () => render());
+  window.addEventListener('gongmo:price-history', () => { refreshAutoDatasets(); render(); });
   document.querySelector('#includeSpac').addEventListener('click', () => { includeSpac = !includeSpac; render(); });
   document.querySelectorAll('#returnMetricTabs button').forEach(btn => {
     btn.addEventListener('click', () => {

@@ -109,3 +109,6 @@ dialog#detailDialog{max-height:88vh;overflow:auto}.detail-checklist{margin-top:1
 #calendar>#hero .hero-strip span{color:#45594c}
 #calendar>#hero .hero-news-button{border-color:#173b2d;background:#173b2d;color:#fff}
 #calendar>#hero .hero-news-button:hover{border-color:#285a40;background:#285a40;color:#fff}
+.service-status #statusCheckedAt[data-state="warning"]{color:#dfad3d}.service-status #statusCheckedAt[data-state="error"]{color:#e27171}.service-status #statusCheckedAt[data-state="ok"]{color:#b8cbbf}
+.data-toolbar .ipo-freshness{font-size:10px;color:#718378;white-space:nowrap}.data-toolbar .ipo-freshness[data-state="warning"]{color:#98701e}.data-toolbar .ipo-freshness[data-state="error"]{color:#a54848}
+.service-status #statusCheckedAt[data-state="warning"]{color:#dfad3d}.service-status #statusCheckedAt[data-state="error"]{color:#e27171}.service-status #statusCheckedAt[data-state="ok"]{color:#b8cbbf}

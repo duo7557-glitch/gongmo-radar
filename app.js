@@ -128,13 +128,14 @@ function scoreBreakdown(item) {
 function checklistRows(item) {
   const p = item.source_payload || {}, s = p.score_signals || {}, beforeDemand = !p.final_terms_receipt_no;
   const unknown = why => '<span class="check-unknown">확인 불가' + (why ? ' · ' + why : '') + '</span>';
+  const notFound = metric => unknown(beforeDemand ? '수요예측 결과 공시 전' : `공시에서 자동 확인되지 않음 · ${metric} DART 원문 확인 필요`);
   const [low, high] = Array.isArray(p.price_band) ? p.price_band : [], confirmed = p.confirmed_price, shares = p.offer_shares;
   const position = !confirmed || !high ? null : confirmed > high ? '희망가 상단 초과' : confirmed === high ? '희망가 상단' : low && confirmed < low ? '희망가 하단 미만' : '희망가 밴드 안';
   const rows = [
     ['공모가', confirmed ? fmtWon(confirmed) + (position ? ' · ' + position : '') + (high ? ' (희망 ' + fmtWon(low) + '~' + fmtWon(high) + ')' : '') : high ? '희망 ' + fmtWon(low) + '~' + fmtWon(high) + ' · 확정 전' : unknown('공시 확인 필요'), '확정 공모가가 희망 밴드 상단을 넘으면 기관 수요가 강했다는 뜻입니다.'],
-    ['기관 수요예측 경쟁률', s.demand_ratio ? s.demand_ratio.value.toLocaleString('ko-KR') + ' : 1' : unknown(beforeDemand ? '수요예측 결과 공시 전' : '원문에서 확인 안 됨'), '기관투자자들이 배정 물량보다 몇 배 많이 신청했는지입니다.'],
-    ['의무보유확약 비율', s.lockup_rate ? s.lockup_rate.value + '%' : unknown(beforeDemand ? '수요예측 결과 공시 전' : '원문에서 확인 안 됨'), '기관이 상장 후 일정 기간 팔지 않겠다고 약속한 비율입니다. 높을수록 상장 직후 매물이 적습니다.'],
-    ['상장일 유통가능물량', s.float_rate ? s.float_rate.value + '%' : unknown('원문에서 확인 안 됨'), '상장 첫날 바로 팔 수 있는 주식 비율입니다. 낮을수록 매물 부담이 적습니다.'],
+    ['기관 수요예측 경쟁률', s.demand_ratio ? s.demand_ratio.value.toLocaleString('ko-KR') + ' : 1' : notFound('경쟁률'), '기관투자자들이 배정 물량보다 몇 배 많이 신청했는지입니다.'],
+    ['의무보유확약 비율', s.lockup_rate ? s.lockup_rate.value + '%' : notFound('확약 비율'), '기관이 상장 후 일정 기간 팔지 않겠다고 약속한 비율입니다. 높을수록 상장 직후 매물이 적습니다.'],
+    ['상장일 유통가능물량', s.float_rate ? s.float_rate.value + '%' : unknown(p.final_terms_receipt_no ? '공시에서 자동 확인되지 않음 · 유통물량 DART 원문 확인 필요' : '최종 공시 전'), '상장 첫날 바로 팔 수 있는 주식 비율입니다. 낮을수록 매물 부담이 적습니다.'],
     ['공모주식수 · 공모금액', shares ? shares.toLocaleString('ko-KR') + '주 · ' + (confirmed ? fmtEok(shares * confirmed) + ' (확정가 기준)' : high ? fmtEok(shares * low) + '~' + fmtEok(shares * high) + ' (희망가 기준)' : unknown()) : unknown(), '공모주식수 × 공모가로 계산합니다.'],
     ['구주매출 비중', shares && p.seller_shares != null ? (p.seller_shares ? Math.round(p.seller_shares / shares * 100) + '% (' + p.seller_shares.toLocaleString('ko-KR') + '주)' : '0% · 전량 신주') : unknown(), '기존 주주가 이번 공모에서 파는 주식 비중입니다. 높으면 회사가 아닌 기존 주주에게 돈이 갑니다.'],
     ['상장일 가격 범위', confirmed ? fmtWon(confirmed * 0.6) + ' ~ ' + fmtWon(confirmed * 4) + ' <small>= 공모가 × 60%~400%, 호가단위 반영 전</small>' : unknown('확정 공모가 공시 후 계산'), '현행 신규상장 제도의 상장 첫날 가격 범위입니다. 최고가 도달을 가정하면 안 됩니다.']
