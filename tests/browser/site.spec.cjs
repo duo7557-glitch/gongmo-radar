@@ -138,3 +138,25 @@ test('top news buttons switch to news and scroll there without hiding it', async
   await expect(page.locator('#news')).toBeVisible();
   await expect(page.locator('#news')).toContainText('공모주 뉴스');
 });
+
+test('news search filters IPO headlines and shows a clear no-results message', async ({ page }) => {
+  await page.route('**/config.js', route => route.fulfill({ contentType: 'text/javascript', body: 'window.GONGMO_CONFIG = {supabaseUrl: "https://news-test.supabase.co"};' }));
+  await page.route('**/functions/v1/news*', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ items: [
+      { title: '알파테크 공모주 수요예측 시작', source: '경제뉴스', summary: '기관 투자자의 수요예측 소식', link: 'https://example.com/alpha', published: '2026-10-04T01:00:00Z' },
+      { title: '베타바이오 신규 상장 일정', source: '증권일보', summary: '공모주 청약 및 상장 정보', link: 'https://example.com/beta', published: '2026-10-04T02:00:00Z' }
+    ], fetchedAt: '2026-10-04T03:00:00Z' })
+  }));
+  await page.goto('/');
+  await page.locator('.split-tabs [data-target="news"]').click();
+  await expect(page.locator('#newsSearch')).toBeVisible();
+  await expect(page.locator('#newsList .news-item')).toHaveCount(2);
+  await page.locator('#newsSearch').fill('알파테크');
+  await expect(page.locator('#newsList .news-item')).toHaveCount(1);
+  await expect(page.locator('#newsList')).toContainText('알파테크 공모주 수요예측 시작');
+  await page.locator('#newsSearch').fill('없는 종목');
+  await expect(page.locator('#newsList')).toContainText('검색 결과가 없습니다');
+  await page.locator('#newsSearch').fill('');
+  await expect(page.locator('#newsList .news-item')).toHaveCount(2);
+});

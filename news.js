@@ -7,7 +7,7 @@
 
   const css = document.createElement('link');
   css.rel = 'stylesheet';
-  css.href = 'news.css?v=20261004-footer-fixed';
+  css.href = 'news.css?v=20261004-news-search-v1';
   document.head.appendChild(css);
 
   const section = document.createElement('section');
@@ -15,12 +15,13 @@
   section.id = 'news';
   section.innerHTML = `
     <div class="section-heading"><div><p class="eyebrow"><span></span> LIVE NEWS</p><h2>공모주 뉴스</h2></div>
-      <div class="news-controls"><span class="news-status" id="newsStatus" role="status"></span><button type="button" class="view-button" id="newsRefresh">새로고침</button></div></div>
+      <div class="news-controls"><input class="news-search" id="newsSearch" type="search" placeholder="종목명·뉴스 제목 검색" aria-label="공모주 뉴스 검색" autocomplete="off"><span class="news-status" id="newsStatus" role="status"></span><button type="button" class="view-button" id="newsRefresh">새로고침</button></div></div>
     <ol class="news-list" id="newsList" aria-live="polite"><li class="news-empty">뉴스를 불러오는 중…</li></ol>
     <p class="chart-caption">뉴스는 구글 뉴스 검색 결과를 모았습니다. 제목을 누르면 언론사 원문으로 이동합니다. 기사 내용은 원문에서 확인하세요.</p>`;
   anchor.insertAdjacentElement('afterend', section);
 
   const list = section.querySelector('#newsList');
+  const search = section.querySelector('#newsSearch');
   const pager = document.createElement('div');
   pager.className = 'news-pager';
   list.after(pager);
@@ -29,15 +30,25 @@
   const el = (tag, attrs = {}, text) => { const node = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, v)); if (text !== undefined) node.textContent = text; return node; };
 
   const PAGE = 18;
-  let allItems = [], page = 0;
+  let sourceItems = [], allItems = [], page = 0;
   function render(items) {
-    allItems = items;
+    sourceItems = items;
+    filterItems();
+  }
+  function filterItems() {
+    const query = search.value.trim().toLocaleLowerCase('ko-KR');
+    allItems = query ? sourceItems.filter(item => [item.title, item.source, item.summary].some(value => String(value || '').toLocaleLowerCase('ko-KR').includes(query))) : sourceItems;
     page = 0;
     draw();
   }
   function draw() {
     list.innerHTML = '';
-    if (!allItems.length) { list.append(el('li', { class: 'news-empty' }, '최근 공모주 뉴스가 없습니다.')); return; }
+    if (!allItems.length) {
+      const message = sourceItems.length && search.value.trim() ? '검색 결과가 없습니다. 다른 종목명이나 검색어를 입력해 보세요.' : '최근 공모주 뉴스가 없습니다.';
+      list.append(el('li', { class: 'news-empty' }, message));
+      pager.innerHTML = '';
+      return;
+    }
     const pages = Math.ceil(allItems.length / PAGE);
     for (const item of allItems.slice(page * PAGE, (page + 1) * PAGE)) {
       const li = el('li', { class: 'news-item' });
@@ -71,6 +82,7 @@
     }
   }
 
+  search.addEventListener('input', filterItems);
   section.querySelector('#newsRefresh').addEventListener('click', load);
   load();
   setInterval(() => { if (!document.hidden) load(); }, 10 * 60 * 1000);
