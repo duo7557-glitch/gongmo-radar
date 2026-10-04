@@ -1,6 +1,6 @@
 // Pure normalization + injectable HTTP layer, shared by local runner and Edge Function.
 // Bump when parsing rules change so previously imported rows are recomputed once.
-export const PARSER_VERSION = 10;
+export const PARSER_VERSION = 11;
 const OFFERING_FILING = /증권신고서.*(?:지분증권|증권예탁증권)/;
 export class DartError extends Error {
   constructor(status) { super(`OpenDART 오류 ${status}`); this.status = status; }

@@ -1,4 +1,4 @@
-const MODEL_VERSION = 'public-signals-v2';
+const MODEL_VERSION = 'public-signals-v3';
 
 const cleanText = value => String(value || '')
   .replace(/&nbsp;|&#160;/gi, ' ')
@@ -12,7 +12,7 @@ function uniqueMatch(text, regex, { min = 0, max = Infinity }) {
   const candidates = [];
   for (const match of text.matchAll(regex)) {
     const value = toNumber(match[1]);
-    if (Number.isFinite(value) && value >= min && value <= max) candidates.push({ value, excerpt: excerpt(text, match.index) });
+    if (Number.isFinite(value) && value >= min && value <= max) candidates.push({ value, excerpt: excerpt(text, match.index), position: match.index });
   }
   const distinct = [...new Map(candidates.map(candidate => [candidate.value, candidate])).values()];
   // Tables can repeat an identical result. Different candidates are ambiguous, so never guess.
@@ -22,10 +22,67 @@ function uniqueMatch(text, regex, { min = 0, max = Infinity }) {
 export function extractIpoSignals(document) {
   const text = cleanText(document);
   return {
-    demand_ratio: uniqueMatch(text, /수요예측[\s\S]{0,130}?(?:경쟁률|경쟁율)[\s\S]{0,70}?([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?::\s*1|대\s*1)/g, { min: 1, max: 100000 }),
+    demand_ratio: extractDemandRatio(text),
     lockup_rate: uniqueMatch(text, /의무보유확약[\s\S]{0,160}?(?:비율|신청수량|확약)[\s\S]{0,90}?([0-9]+(?:\.[0-9]+)?)\s*%/g, { min: 0, max: 100 }),
-    float_rate: uniqueMatch(text, /(?:상장일[\s\S]{0,80}?)?유통가능(?:물량|주식)[\s\S]{0,150}?([0-9]+(?:\.[0-9]+)?)\s*%/g, { min: 0, max: 100 })
+    float_rate: extractFloatRate(text)
   };
+}
+
+function extractDemandRatio(text) {
+  const explicit = uniqueMatch(text, /수요예측[\s\S]{0,130}?(?:경쟁률|경쟁율)[\s\S]{0,70}?([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?::\s*1|대\s*1)/g, { min: 1, max: 100000 });
+  const candidates = explicit ? [explicit] : [];
+  for (const heading of text.matchAll(/수요예측\s*참여\s*내역/g)) {
+    const rest = text.slice(heading.index);
+    const nextSection = rest.search(/수요예측\s*신청\s*가격\s*분포/);
+    const section = nextSection < 0 ? rest.slice(0, 16000) : rest.slice(0, nextSection);
+    const row = section.match(/경쟁률\s*(?:\(?주\d+\)?)?\s+((?:-|[0-9][0-9,]*(?:\.[0-9]+)?)(?:\s+(?:-|[0-9][0-9,]*(?:\.[0-9]+)?)){1,24})/);
+    if (!row) continue;
+    const footnote = section.slice(row.index + row[0].length, row.index + row[0].length + 1000);
+    // Only use the aggregate row when the filing explicitly states that it is the final
+    // institutional-demand ratio based on the allocated institutional shares.
+    if (!/경쟁률은[\s\S]{0,240}(?:기관투자자|배정주식|배정주수)[\s\S]{0,120}(?:기준|산출|단순경쟁률)/.test(footnote)) continue;
+    const values = row[1].trim().split(/\s+/).filter(value => value !== '-').map(toNumber).filter(value => Number.isFinite(value) && value >= 1 && value <= 100000);
+    const value = values.at(-1);
+    if (value !== undefined) candidates.push({ value, excerpt: excerpt(text, heading.index + row.index, 360), position: heading.index + row.index });
+  }
+  // DART correction filings embed the old "정정 전" passage and the latest
+  // "정정 후" passage in document order. The last matching summary is the current one.
+  const latest = candidates.reduce((current, candidate) => !current || candidate.position >= current.position ? candidate : current, null);
+  if (!latest) return null;
+  const { position, ...signal } = latest;
+  return signal;
+}
+
+function extractFloatRate(text) {
+  const candidates = [];
+  const statement = /상장예정주식수(?:\s*\([^)]{0,120}\))?\s*([0-9][0-9,]*)\s*주?\s*중\s*(?:([0-9]+(?:\.[0-9]+)?)\s*%\s*에\s*해당하는\s*)?([0-9][0-9,]*)\s*주[^.]{0,100}?(?:상장\s*(?:직후|일)\s*유통가능|유통가능\s*물량)/g;
+  for (const match of text.matchAll(statement)) {
+    const totalShares = toNumber(match[1]), availableShares = toNumber(match[3]);
+    if (!totalShares || !availableShares || availableShares > totalShares) continue;
+    const value = Math.round(availableShares / totalShares * 10000) / 100;
+    const disclosed = match[2] == null ? null : Number(match[2]);
+    // The prose percentage is rounded. A larger mismatch indicates a column/phrase mix-up.
+    if (disclosed != null && Math.abs(value - disclosed) > 0.11) continue;
+    candidates.push({ value, excerpt: match[0], source: 'calculated', position: match.index });
+  }
+  // Some issuers disclose the listing-day aggregate only in the dedicated
+  // post-listing float table. Read the first (post-offering, non-diluted) pair
+  // after that table's heading; never read percentages from shareholder rows.
+  const tableHeading = /기간별\s*유통가능\s*주식수(?:\s*현황)?|상장\s*후\s*유통가능\s*주식수\s*현황/g;
+  for (const heading of text.matchAll(tableHeading)) {
+    const section = text.slice(heading.index, heading.index + 2400);
+    const row = section.match(/상장일\s*유통가능\s*([0-9][0-9,]*)\s*주?\s*([0-9]+(?:[.,][0-9]+)?)\s*%?/);
+    if (!row) continue;
+    const rawRate = row[2];
+    const value = Number(rawRate.includes(',') && !rawRate.includes('.') ? rawRate.replace(',', '.') : rawRate);
+    if (Number.isFinite(value) && value >= 0 && value <= 100) candidates.push({ value, excerpt: section.slice(0, row.index + row[0].length), source: 'table', position: heading.index + row.index });
+  }
+  // Corrected DART filings include both the old and amended summaries; the last
+  // validated post-IPO share calculation is the latest "정정 후" value.
+  const latest = candidates.reduce((current, candidate) => !current || candidate.position >= current.position ? candidate : current, null);
+  if (!latest) return null;
+  const { position, ...signal } = latest;
+  return signal;
 }
 
 export function extractIssuedLockup(document) {
