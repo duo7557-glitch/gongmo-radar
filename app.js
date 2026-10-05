@@ -152,7 +152,9 @@ function checklistRows(item) {
     ['구주매출 비중', shares && p.seller_shares != null ? (p.seller_shares ? Math.round(p.seller_shares / shares * 100) + '% (' + p.seller_shares.toLocaleString('ko-KR') + '주)' : '0% · 전량 신주') : unknown(), '기존 주주가 이번 공모에서 파는 주식 비중입니다. 높으면 회사가 아닌 기존 주주에게 돈이 갑니다.'],
     ['상장일 가격 범위', confirmed ? fmtWon(confirmed * 0.6) + ' ~ ' + fmtWon(confirmed * 4) + ' <small>= 공모가 × 60%~400%, 호가단위 반영 전</small>' : unknown('확정 공모가 공시 후 계산'), '현행 신규상장 제도의 상장 첫날 가격 범위입니다. 최고가 도달을 가정하면 안 됩니다.']
   ];
-  return '<section class="detail-checklist"><h3>핵심 체크리스트</h3><p class="check-note">공시(DART)에서 자동 확인한 값입니다. 확인되지 않은 값은 추측하지 않습니다.</p><dl>' + rows.map(([label, value, help]) => '<div><dt>' + label + '</dt><dd>' + value + '<small>' + help + '</small></dd></div>').join('') + '</dl>' +
+  // 확인되지 않은 항목은 빈 칸으로 남기지 않고 숨긴다.
+  const shown = rows.filter(([, value]) => !value.includes('check-unknown'));
+  return '<section class="detail-checklist"><h3>핵심 체크리스트</h3><p class="check-note">공시(DART)에서 자동 확인한 값입니다. 확인되지 않은 값은 추측하지 않습니다.</p><dl>' + shown.map(([label, value, help]) => '<div><dt>' + label + '</dt><dd>' + value + '<small>' + help + '</small></dd></div>').join('') + '</dl>' +
     (confirmed ? '<div class="breakeven" data-price="' + confirmed + '"><h4>비용 포함 손익분기 계산</h4><label>배정 주수 <input type="number" min="1" value="1" data-be="shares"></label><label>청약수수료(원) <input type="number" min="0" value="2000" data-be="fee"></label><label>매도 수수료·세금(가정, %) <input type="number" min="0" step="0.01" value="0.2" data-be="rate"></label><p data-be="out"></p></div>' : '') +
     '<p class="check-note">수요예측 경쟁률이나 확약 비율은 상장 후 주가를 보장하지 않습니다. 증권사별 청약수수료와 세율은 실제 조건을 확인해 주세요.</p></section>';
 }
