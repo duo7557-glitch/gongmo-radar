@@ -4,6 +4,7 @@
  */
 window.GONGMO_CONFIG = {
   supabaseUrl: 'https://xwclwdxerhxrjmpexzga.supabase.co',
+  vapidPublicKey: 'BL7-SRxWWdKbgdP6HcLvDLAf1EF2AxJv5YTxD97ySc81CBXuowZ0iytZq78-9QdaYb1J6Qp4lljNgw5LkFBWSDM',
   // sb_publishable_ 로 시작하는 키를 넣으세요. (구형 anon 키도 호환됩니다.)
   supabasePublishableKey: 'sb_publishable_kXKh8fXa9QpPZ2RLmswqOg_Jw3AigN0',
   chatRoom: 'lobby'

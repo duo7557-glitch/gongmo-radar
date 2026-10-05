@@ -57,7 +57,8 @@ function setupReminderSchedule() {
       reminderSchedule[key] = { enabled: document.getElementById(enabledId).checked, time: document.getElementById(timeId).value || defaultReminderSchedule[key].time };
     }
     store('gongmo-radar-reminder-schedule', reminderSchedule);
-    $('#reminderScheduleStatus').textContent = reminderSlots().length ? '알림 시각을 이 브라우저에 저장했습니다.' : '선택된 알림이 없습니다. 하나 이상 켜 주세요.';
+    $('#reminderScheduleStatus').textContent = reminderSlots().length ? (window.IpoWebPush?.available() ? '선택한 알림 시각을 저장했습니다. 웹푸시 연결 후 사이트를 닫아도 받을 수 있어요.' : '알림 시각을 이 브라우저에 저장했습니다.') : '선택된 알림이 없습니다. 하나 이상 켜 주세요.';
+    if (window.IpoWebPush?.available() && Notification.permission === 'granted') window.IpoWebPush.sync(reminders, reminderSchedule).catch(() => {});
   };
   document.querySelector('.reminder-options').addEventListener('change', save);
   save();
@@ -68,7 +69,9 @@ function updateReminderDialog(item) {
 }
 async function toggleReminder(item) {
   if (reminderEnabled(item)) {
-    reminders = reminders.filter(id => id !== String(item.id)); store('gongmo-radar-reminders', reminders); updateReminderDialog(item); render(); return;
+    reminders = reminders.filter(id => id !== String(item.id)); store('gongmo-radar-reminders', reminders); updateReminderDialog(item); render();
+    if (window.IpoWebPush?.available()) window.IpoWebPush.sync(reminders, reminderSchedule).catch(() => {});
+    return;
   }
   if (!reminderSlots().length) { alert('알림 설정에서 받을 시각을 하나 이상 선택해 주세요.'); return; }
   if (!('Notification' in window)) { alert('이 브라우저는 알림을 지원하지 않습니다.'); return; }
@@ -77,7 +80,16 @@ async function toggleReminder(item) {
   if (permission !== 'granted') { alert('브라우저 알림 권한이 허용되어야 청약 알림을 받을 수 있습니다.'); return; }
   reminders = [...new Set([...reminders, String(item.id)])]; store('gongmo-radar-reminders', reminders); updateReminderDialog(item); render();
   const scheduleText = reminderSlots().map(slot => `${slot.offset ? '전날' : '마감일'} ${slot.time}`).join(' · ');
-  new Notification('공모주 마감 알림 테스트', { body: `${item.name} 알림 설정 완료\n예약 시각: ${scheduleText}`, tag: `ipo-reminder-test-${item.id}` });
+  if (window.IpoWebPush?.available()) {
+    try {
+      const result = await window.IpoWebPush.sync(reminders, reminderSchedule, { askPermission: true });
+      if (result.active) await window.IpoWebPush.test();
+      else new Notification('공모주 마감 알림 설정', { body: `${item.name} · ${scheduleText}\n웹푸시 예약 연결을 확인해 주세요.`, tag: `ipo-reminder-test-${item.id}` });
+    } catch {
+      new Notification('공모주 마감 알림 설정', { body: `${item.name} · ${scheduleText}\n브라우저가 열려 있는 동안 알림을 받을 수 있습니다.`, tag: `ipo-reminder-test-${item.id}` });
+      alert('이 브라우저 알림은 설정됐어요. 사이트를 닫은 뒤에도 받는 웹푸시는 Supabase SQL 및 GitHub 비밀키 설정을 마쳐야 활성화됩니다.');
+    }
+  } else new Notification('공모주 마감 알림 테스트', { body: `${item.name} 알림 설정 완료\n예약 시각: ${scheduleText}`, tag: `ipo-reminder-test-${item.id}` });
   checkIpoReminders();
 }
 function koreaReminderTime(date, time) {
@@ -341,7 +353,7 @@ document.addEventListener('click', event => {
     const dart = sourceUrl(item.source_dart_url, 'dart.fss.or.kr'), kind = sourceUrl(item.source_kind_url, 'kind.krx.co.kr');
     const canRemind = item.subscription_end && item.subscription_end >= today && !['철회', '연기'].includes(statusOf(item));
     $('#dialogContent').innerHTML = `<p class="eyebrow"><span></span> ${demoMode ? 'SAMPLE ANALYSIS' : 'IPO OVERVIEW'}</p><h2 class="detail-title">${escapeHtml(item.name)} ${hotBadge(item)}</h2><p class="detail-sub">${escapeHtml(item.sector || '업종 확인중')} · ${escapeHtml(statusOf(item))} · ${scoreLabel(item)}</p>${!demoMode && canRemind ? `<button class="view-button reminder-button detail-reminder" data-reminder="${escapeHtml(item.id)}" aria-pressed="${reminderEnabled(item)}">${reminderEnabled(item) ? '🔔 청약 알림 설정됨' : '🔔 마감 전 알림 받기'}</button><p class="reminder-note">전날 18시·마감일 9시 알림 · 브라우저가 열려 있어야 합니다.</p>` : ''}<div class="detail-grid"><div><span>청약 기간</span><b>${escapeHtml(item.dates)}</b></div><div><span>공모가</span><b>${escapeHtml(item.price || '확인중')}</b></div><div><span>인수인 · 주관사</span><b>${escapeHtml(item.broker || '확인중')}</b></div>${hotReasons(item).length ? `<div><span>핫한 이유</span><b>${escapeHtml(hotReasons(item).join(' · '))}</b></div>` : ''}<div><span>분석 의견</span><b>${escapeHtml(item.reason || '기관 수요예측과 유통물량 확인 후 분석됩니다.')}</b></div></div>${demoMode ? '' : scoreBreakdown(item)}${demoMode ? '' : checklistRows(item)}<div class="source-links">${dart ? `<a href="${escapeHtml(dart)}" target="_blank" rel="noopener noreferrer">DART 원문 ↗</a>` : ''}${kind ? `<a href="${escapeHtml(kind)}" target="_blank" rel="noopener noreferrer">KIND 원문 ↗</a>` : ''}</div><p class="detail-caution">${demoMode ? '가상 기업의 예시 데이터입니다.' : '일정과 가격은 정정 공시로 변경될 수 있습니다. 공시상 청약기일이 일반 투자자 청약일과 일치하는지 원문에서 확인해 주세요.'} 분석 점수는 공개 지표의 비교 결과입니다.</p>`;
-    const reminderNote = $('#dialogContent .reminder-note'); if (reminderNote) reminderNote.textContent = `${reminderSlots().map(slot => `${slot.offset ? '전날' : '마감일'} ${slot.time}`).join(' · ')} 알림 · 사이트가 브라우저에서 열려 있어야 합니다.`;
+    const reminderNote = $('#dialogContent .reminder-note'); if (reminderNote) reminderNote.textContent = `${reminderSlots().map(slot => `${slot.offset ? '전날' : '마감일'} ${slot.time}`).join(' · ')} 알림 · ${window.IpoWebPush?.available() ? '웹푸시 서버 설정 후 사이트를 닫아도 받을 수 있습니다.' : '사이트가 브라우저에서 열려 있어야 합니다.'}`;
     const detailRows = $('#dialogContent .detail-grid');
     if (detailRows) {
       const periodRow = [...detailRows.children].find(row => row.querySelector('span')?.textContent === '청약 기간');
