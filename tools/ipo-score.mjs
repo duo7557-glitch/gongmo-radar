@@ -1,4 +1,4 @@
-const MODEL_VERSION = 'public-signals-v4';
+const MODEL_VERSION = 'public-signals-v5';
 
 const cleanText = value => String(value || '')
   .replace(/&nbsp;|&#160;/gi, ' ')
@@ -126,6 +126,11 @@ export function applyAutomaticScore(listing, document, now = new Date(), resultD
   const signals = extractIpoSignals(document);
   const issuedLockup = resultDocument && extractIssuedLockup(resultDocument);
   if (issuedLockup) signals.lockup_rate = issuedLockup;
+  return scoreFromSignals(listing, signals, now);
+}
+
+// 이미 추출된 신호(여러 공시를 거쳐 모은 것일 수 있음)로 점수를 계산한다.
+export function scoreFromSignals(listing, signals, now = new Date()) {
   const result = scoreIpoSignals(signals);
   const source_payload = {
     ...(listing.source_payload || {}), score_model: MODEL_VERSION, score_checked_at: now.toISOString(),

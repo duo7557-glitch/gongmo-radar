@@ -1,6 +1,29 @@
 import { unzipSync } from 'fflate';
 import { createDartClient, documentText, DartError } from '../supabase/functions/_shared/dart.mjs';
-import { applyAutomaticScore, MODEL_VERSION } from './ipo-score.mjs';
+import { extractIpoSignals, extractIssuedLockup, scoreFromSignals, MODEL_VERSION } from './ipo-score.mjs';
+
+// 최신 [발행조건확정] 공시가 사소한 문구 정정뿐이라 지표가 비어 있을 때를 대비해,
+// 같은 회사의 다른 증권신고서·정정·투자설명서를 최신 순으로 더 훑어 지표를 채운다.
+const REVISION_FILING = /증권신고서|투자설명서|발행조건확정/;
+const MAX_FALLBACK_DOCS = 6;
+async function collectSignals(client, unzip, row, primaryReceiptNo, kstDate) {
+  const primaryText = documentText(await client.document(primaryReceiptNo), unzip);
+  let signals = extractIpoSignals(primaryText);
+  if (!row.dart_corp_code || Object.values(signals).every(Boolean)) return signals;
+  const begin = (row.dart_receipt_no || primaryReceiptNo).slice(0, 8);
+  const history = await client.list({ corp_code: row.dart_corp_code, bgn_de: begin, end_de: kstDate.replaceAll('-', ''), pblntf_ty: 'C' });
+  const candidates = history
+    .filter(report => REVISION_FILING.test(report.report_nm || '') && report.rcept_no !== primaryReceiptNo)
+    .sort((a, b) => b.rcept_no.localeCompare(a.rcept_no))
+    .slice(0, MAX_FALLBACK_DOCS);
+  for (const candidate of candidates) {
+    if (Object.values(signals).every(Boolean)) break;
+    const text = documentText(await client.document(candidate.rcept_no), unzip);
+    const found = extractIpoSignals(text);
+    for (const key of Object.keys(signals)) if (!signals[key] && found[key]) signals[key] = found[key];
+  }
+  return signals;
+}
 import { loadEnv } from './load-env.mjs';
 await loadEnv();
 
@@ -26,17 +49,21 @@ try {
   const due = rows.filter(isDue), client = createDartClient(DART_API_KEY); let updated = 0;
   for (const row of due) {
     try {
-      // Use the final prospectus for pre-IPO signals. After subscription, the issuance report
-      // publishes actual institutional lockup allocations; include it for historical listings.
-      const document = documentText(await client.document(row.source_payload?.final_terms_receipt_no || row.dart_receipt_no), unzipSync);
-      let resultDocument = '';
+      // Use the final prospectus for pre-IPO signals, falling back to earlier revisions when the
+      // latest [발행조건확정] filing turns out to be a small wording-only correction with no tables.
+      // After subscription, the issuance report publishes actual institutional lockup allocations.
+      const primaryReceiptNo = row.source_payload?.final_terms_receipt_no || row.dart_receipt_no;
+      const signals = await collectSignals(client, unzipSync, row, primaryReceiptNo, kstDate());
       if (row.subscription_end < kstDate() && row.dart_corp_code && /^\d{14}$/.test(row.dart_receipt_no || '')) {
         const begin = row.dart_receipt_no.slice(0, 8);
         const reports = await client.list({ corp_code: row.dart_corp_code, bgn_de: begin, end_de: kstDate().replaceAll('-', ''), pblntf_ty: 'C' });
         const issuance = reports.find(report => /증권발행실적보고서/.test(report.report_nm || ''));
-        if (issuance) resultDocument = documentText(await client.document(issuance.rcept_no), unzipSync);
+        if (issuance) {
+          const issuedLockup = extractIssuedLockup(documentText(await client.document(issuance.rcept_no), unzipSync));
+          if (issuedLockup) signals.lockup_rate = issuedLockup;
+        }
       }
-      const scored = applyAutomaticScore(row, document, new Date(), resultDocument);
+      const scored = scoreFromSignals(row, signals, new Date());
       await rest(`ipo_listings?id=eq.${row.id}`, { method: 'PATCH', body: JSON.stringify({ ...scored, updated_at: new Date().toISOString() }) });
       updated++;
     } catch (error) {
