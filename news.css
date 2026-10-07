@@ -192,3 +192,15 @@
   #hero .hero-card-body small{font-size:9px}
   #hero .hero-card-date{font-size:10px;padding:3px 5px}
 }
+
+/* 공개지표 분석 카드: 지표 배지·하단 안내 글이 카드 높이에 가려 잘리지 않도록 고정 높이를 없애고 세로로 쌓는다 */
+.pick-card{min-height:0;height:auto;display:flex;flex-direction:column;padding-bottom:40px}
+.pick-card .signals{position:static;flex-wrap:wrap;margin:10px 0 0}
+.pick-card>small{position:static;display:block;margin-top:8px;color:#62706b}
+.pick-card .card-detail{position:absolute;right:14px;bottom:12px}
+
+/* 지표 1개만 확인된 참고용 점수 구분 표시 */
+.score.is-partial{opacity:.85}
+.score-partial-tag{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:4px;background:#f3ead0;color:#8a6d1f;font-size:9px;font-weight:700;vertical-align:middle}
+.pick-card.is-partial{border-style:dashed}
+.pick-card.is-partial .tag{color:#8a6d1f}

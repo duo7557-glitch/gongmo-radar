@@ -15,12 +15,16 @@ test('automatic score requires enough disclosed IPO signals', () => {
   assert.match(listing.reason, /투자 권유가 아닙니다/);
 });
 
-test('ambiguous or incomplete signals keep a listing pending', () => {
+test('ambiguous signals keep a listing pending, but one confirmed signal gives a partial score', () => {
   const mixed = extractIpoSignals('수요예측 경쟁률 100:1 수요예측 경쟁률 200:1');
   assert.equal(mixed.demand_ratio, null);
-  const pending = applyAutomaticScore({ source_payload: {} }, '수요예측 경쟁률은 800:1 입니다.');
-  assert.equal(pending.score, null);
-  assert.equal(pending.score_status, 'pending');
+  const empty = applyAutomaticScore({ source_payload: {} }, '수요예측 경쟁률 100:1 수요예측 경쟁률 200:1');
+  assert.equal(empty.score, null);
+  assert.equal(empty.score_status, 'pending');
+  const partial = applyAutomaticScore({ source_payload: {} }, '수요예측 경쟁률은 800:1 입니다.');
+  assert.equal(partial.score_status, 'partial');
+  assert.ok(partial.score >= 0 && partial.score <= 100);
+  assert.match(partial.reason, /1개 지표만 반영한 참고용/);
 });
 
 test('two disclosed signals can produce a transparent partial-coverage comparison', () => {

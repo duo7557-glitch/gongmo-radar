@@ -1,4 +1,4 @@
-const MODEL_VERSION = 'public-signals-v3';
+const MODEL_VERSION = 'public-signals-v4';
 
 const cleanText = value => String(value || '')
   .replace(/&nbsp;|&#160;/gi, ' ')
@@ -114,8 +114,10 @@ export function scoreIpoSignals(signals) {
   const rules = [['demand_ratio', 45, demandPoint], ['lockup_rate', 30, lockupPoint], ['float_rate', 25, floatPoint]];
   const available = rules.filter(([key]) => signals[key]);
   const coverage = available.reduce((sum, [, weight]) => sum + weight, 0);
-  if (coverage < 55) return { score: null, score_status: 'pending', coverage };
-  return { score: Math.round(available.reduce((sum, [key, weight, points]) => sum + weight * points(signals[key].value), 0) / coverage), score_status: 'auto', coverage };
+  if (coverage === 0) return { score: null, score_status: 'pending', coverage };
+  const score = Math.round(available.reduce((sum, [key, weight, points]) => sum + weight * points(signals[key].value), 0) / coverage);
+  // 지표가 2개 이상(가중치 합 55 이상) 확인되면 확정형, 1개만 확인되면 참고용으로 구분한다.
+  return { score, score_status: coverage >= 55 ? 'auto' : 'partial', coverage };
 }
 
 const signalText = (key, signal) => key === 'demand_ratio' ? `수요예측 ${signal.value.toLocaleString('ko-KR')}:1` : key === 'lockup_rate' ? `의무보유확약 ${signal.value}%${signal.source === 'issued' ? ' (실제 배정)' : ''}` : `유통가능물량 ${signal.value}%`;
@@ -130,11 +132,15 @@ export function applyAutomaticScore(listing, document, now = new Date(), resultD
     score_signals: Object.fromEntries(Object.entries(signals).map(([key, signal]) => [key, signal ? { value: signal.value, excerpt: signal.excerpt, ...(signal.source ? { source: signal.source } : {}) } : null]))
   };
   const entries = Object.entries(signals).filter(([, signal]) => signal);
-  if (result.score_status !== 'auto') return {
+  if (result.score_status === 'pending') return {
     score: null, score_status: 'pending', source_payload, tags: ['DART 공시', '분석 대기'],
-    reason: entries.length ? `공개 공시에서 ${entries.map(([key, signal]) => signalText(key, signal)).join(' · ')}만 확인됐습니다. 핵심 지표 2개 이상이 확인되면 자동 산출합니다.` : '기관 수요예측·의무보유확약·상장일 유통가능물량이 공시되면 자동으로 분석합니다.'
+    reason: '기관 수요예측·의무보유확약·상장일 유통가능물량이 공시되면 자동으로 분석합니다.'
   };
   const labels = entries.map(([key, signal]) => signalText(key, signal));
+  if (result.score_status === 'partial') return {
+    score: result.score, score_status: 'partial', source_payload, tags: ['DART 공시', '참고용', ...labels],
+    reason: `핵심 지표 중 ${labels.join(' · ')}만 확인됐습니다. 1개 지표만 반영한 참고용 점수이며, 다른 지표가 확인되면 다시 계산됩니다.`
+  };
   return {
     score: result.score, score_status: 'auto', source_payload, tags: ['DART 공시', '자동 산출', ...labels],
     reason: `공개 공시 지표 자동 비교: ${labels.join(' · ')}. 점수는 공개 지표의 비교용 신호이며 투자 권유가 아닙니다.`
