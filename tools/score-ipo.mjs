@@ -18,9 +18,15 @@ async function collectSignals(client, unzip, row, primaryReceiptNo, kstDate) {
     .slice(0, MAX_FALLBACK_DOCS);
   for (const candidate of candidates) {
     if (Object.values(signals).every(Boolean)) break;
-    const text = documentText(await client.document(candidate.rcept_no), unzip);
-    const found = extractIpoSignals(text);
-    for (const key of Object.keys(signals)) if (!signals[key] && found[key]) signals[key] = found[key];
+    // One bad revision (DART occasionally serves a non-ZIP error page for an older receipt)
+    // should not block the rest of the fallback list.
+    try {
+      const text = documentText(await client.document(candidate.rcept_no), unzip);
+      const found = extractIpoSignals(text);
+      for (const key of Object.keys(signals)) if (!signals[key] && found[key]) signals[key] = found[key];
+    } catch (error) {
+      if (error instanceof DartError && ['010', '011', '012', '020', '901'].includes(error.status)) throw error;
+    }
   }
   return signals;
 }
