@@ -102,6 +102,6 @@ OpenDART 공시 목록 전체 페이지, 지분증권 신고서 요약, ZIP 원�
 - 신고 검토는 Supabase SQL Editor에서 `select * from public.chat_moderation_queue order by report_count desc, last_reported_at desc;`로 확인합니다. 숨김은 `update public.chat_messages set moderation_status = 'hidden' where id = <메시지 ID>;`, 복구는 `'visible'`로 바꿉니다. 이 권한은 공개 방문자에게 주지 않습니다.
 - 월별 상장 성과는 상장일·공모가와 시세 이력에서 자동 묶습니다. 평일 갱신된 Supabase 시세가 정적 사본보다 최신이면 배포 없이 업데이트하며, 연결이 안 되면 기존 스냅샷을 계속 보여줍니다. 시세 누락 종목이 있는 달은 불완전 자료로 덮어쓰지 않습니다.
 - 공개 채팅은 익명이며 닉네임이 본인 확인을 뜻하지 않습니다. 신고함을 주기적으로 검토하고, 대응이 어려운 기간에는 채팅을 잠시 닫는 것을 권합니다.
-- 제3자 방문 분석은 추가하지 않았습니다. 방문 통계를 도입하려면 사용할 분석 서비스와 개인정보 안내 범위를 먼저 정해야 합니다. 광고 문구와 슬롯은 현재 공개 화면에서 제외했습니다.
+- Google Analytics 4를 사용해 페이지 조회와 방문 통계를 확인합니다. 개인정보처리방침에 분석 도구 사용을 안내합니다. 광고 문구와 슬롯은 현재 공개 화면에서 제외했습니다.
 
 DART 키·service_role·스케줄러 비밀값은 공개 파일에 포함하지 마세요.
