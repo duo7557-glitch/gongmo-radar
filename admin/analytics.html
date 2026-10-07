@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#103b2a" />
+  <title>운영자 방문 통계 | 공모주 레이더</title>
+  <link rel="stylesheet" href="analytics.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="analytics.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topline"><a href="../">← 공모주 레이더로</a><span>OWNER ANALYTICS</span></header>
+    <section class="intro">
+      <p class="eyebrow">PRIVATE DASHBOARD</p>
+      <h1>사이트 방문 통계</h1>
+      <p>Google 계정으로 로그인하면 공모주 레이더 GA4 속성에서 최근 방문 통계를 불러옵니다.</p>
+    </section>
+
+    <section class="setup card" aria-labelledby="setupTitle">
+      <h2 id="setupTitle">처음 한 번 연결하기</h2>
+      <p class="hint">Google Cloud에서 만든 웹 OAuth 클라이언트 ID와 GA4 속성 ID를 입력하세요. 설정값은 이 브라우저에만 저장됩니다. 클라이언트 보안 비밀(Client secret)은 입력하지 마세요.</p>
+      <form id="settingsForm">
+        <label>웹 OAuth 클라이언트 ID
+          <input id="clientId" type="text" placeholder="123456789-abc.apps.googleusercontent.com" autocomplete="off" required />
+        </label>
+        <label>GA4 속성 ID
+          <input id="propertyId" type="text" inputmode="numeric" placeholder="예: 123456789 (G-측정 ID가 아님)" autocomplete="off" required />
+        </label>
+        <label>허용할 Google 계정 이메일
+          <input id="ownerEmail" type="email" placeholder="내 Google 계정 이메일" autocomplete="email" required />
+        </label>
+        <button class="secondary" type="submit">연결 설정 저장</button>
+      </form>
+      <p class="hint security-note">중요: Google Cloud OAuth 동의 화면의 테스트 사용자에도 본인 계정만 추가해 주세요. 아래 이메일 확인은 추가 안전 확인이며, Google Cloud의 테스트 사용자 제한과 GA 속성 권한이 실제 접근을 통제합니다.</p>
+    </section>
+
+    <section class="dashboard card" aria-labelledby="dashboardTitle">
+      <div class="dashboard-head">
+        <div><p class="eyebrow">GA4 · READ ONLY</p><h2 id="dashboardTitle">방문 요약</h2></div>
+        <button id="signIn" type="button">Google로 로그인</button>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite">연결 설정을 입력하고 저장해 주세요.</p>
+      <div class="cards" id="metrics" hidden>
+        <article><span>오늘 활성 사용자</span><strong id="usersToday">—</strong></article>
+        <article><span>최근 7일 활성 사용자</span><strong id="users7">—</strong></article>
+        <article><span>최근 28일 활성 사용자</span><strong id="users28">—</strong></article>
+        <article><span>최근 7일 세션</span><strong id="sessions7">—</strong></article>
+        <article><span>최근 7일 페이지 조회</span><strong id="views7">—</strong></article>
+      </div>
+      <p class="updated" id="updatedAt"></p>
+    </section>
+    <footer>통계는 Google Analytics 4 기준이며, 집계 지연·동의 설정·차단 프로그램에 따라 실제 방문과 차이가 날 수 있습니다. 로그인 토큰은 페이지가 열린 동안에만 메모리에 유지됩니다.</footer>
+  </main>
+</body>
+</html>
